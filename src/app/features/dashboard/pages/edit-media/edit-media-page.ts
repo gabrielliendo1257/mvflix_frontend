@@ -127,16 +127,16 @@ function toMetadata(detail: MediaDetail): MovieMetadata {
         originalTitle: overview.originalTitle ?? '',
         year: overview.year,
         genres: overview.genres ?? [],
-        popularity: 5,
+        popularity: overview.popularity ?? 5,
         duration: overview.duration ?? '',
         director: overview.director ?? '',
         cast: overview.cast ?? [],
         overview: overview.overview ?? '',
         poster_path: overview.posterUrl,
-        release_date: '',
-        country: '',
-        language: '',
-        awards: [],
+        release_date: overview.releaseDate ?? '',
+        country: overview.country ?? '',
+        language: overview.language ?? '',
+        awards: overview.awards ?? [],
     };
 }
 

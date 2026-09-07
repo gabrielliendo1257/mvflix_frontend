@@ -18,6 +18,11 @@ export interface MediaOverview {
     readonly genres: string[];
     readonly director: string | null;
     readonly cast: string[];
+    readonly releaseDate: string | null;
+    readonly country: string | null;
+    readonly language: string | null;
+    readonly awards: string[];
+    readonly popularity: number | null;
 }
 
 export interface MediaSummary {
