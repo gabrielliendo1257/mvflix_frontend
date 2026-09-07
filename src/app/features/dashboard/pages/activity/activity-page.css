@@ -47,6 +47,11 @@
     font-size: 0.9rem;
 }
 
+.job-meta {
+    color: var(--color-muted);
+    font-size: 0.75rem;
+}
+
 .job-state {
     font-size: 0.72rem;
     font-weight: 700;

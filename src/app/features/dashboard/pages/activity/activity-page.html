@@ -22,23 +22,43 @@
         </div>
     }
 
-    <h2 class="section-title">Jobs</h2>
+    <h2 class="section-title">Activity feed</h2>
+    @if (activityStore.loading() && !activityStore.items().length) {
+        <div class="job">Loading activity...</div>
+    } @else if (activityStore.error() && !activityStore.items().length) {
+        <div class="job">
+            <span class="job-text">{{ activityStore.error() }}</span>
+            <button class="btn-back-inline" type="button" (click)="activityStore.retry()">Retry</button>
+        </div>
+    } @else {
     <div class="job-list">
-        @for (job of mockJobs(); track job.id) {
+        @for (activity of activityStore.items(); track activity.activityId) {
             <div class="job">
                 <div class="job-head">
-                    <span class="job-text">{{ job.text }}</span>
-                    <span class="job-state" [class.failed]="job.state === 'FAILED'" [class.done]="job.state === 'COMPLETED'">
-                        {{ job.state }}
-                    </span>
-                </div>
-                @if (job.progress != null) {
-                    <div class="track">
-                        <div class="fill" [style.width.%]="job.progress"></div>
-                        <span class="percent">{{ job.progress }}%</span>
+                        <span class="job-text">{{ activityLabel(activity) }}</span>
+                        <span class="job-state" [class.failed]="activity.severity === 'ERROR'" [class.done]="activity.status === 'COMPLETED'">
+                            {{ activity.status }}
+                        </span>
                     </div>
-                }
-            </div>
+                    <span class="job-meta">{{ activity.type }} · {{ formatActivityDate(activity.lastOccurredAt) }}</span>
+                    @if (activity.failureCode) {
+                        <span class="task-error">{{ activity.failureCode }}</span>
+                    }
+                </div>
+        } @empty {
+            <div class="job">No activity yet.</div>
         }
     </div>
+    @if (activityStore.error()) {
+        <div class="job">
+            <span class="job-text">{{ activityStore.error() }}</span>
+            <button class="btn-back-inline" type="button" (click)="activityStore.retry()">Retry</button>
+        </div>
+    }
+    @if (activityStore.hasMore()) {
+        <button class="btn-back-inline" type="button" [disabled]="activityStore.loading()" (click)="activityStore.loadMore()">
+            {{ activityStore.loading() ? 'Loading...' : 'Load more' }}
+        </button>
+    }
+    }
 </section>
