@@ -6,16 +6,13 @@ import { UploadFacade } from '@features/uploads/services/upload-facade';
 import { ToastService } from '@core/ui/toast.service';
 import { Library } from '@features/libraries/models/library';
 import { AddMediaModal, AddMediaSource } from '@features/dashboard/components/add-media-modal/add-media-modal';
-
-interface ActivityEntry {
-    text: string;
-    when: string;
-    state: 'done' | 'running' | 'failed';
-}
+import { ActivityStore } from '@features/activity/data-access/activity-store';
+import { ActivityItem } from '@features/activity/models/activity';
 
 @Component({
     selector: 'app-dashboard-overview',
     imports: [AddMediaModal],
+    providers: [ActivityStore],
     templateUrl: './dashboard-overview.html',
     styleUrl: './dashboard-overview.css',
 })
@@ -25,6 +22,7 @@ export class DashboardOverview {
     private readonly uploadFacade = inject(UploadFacade);
     private readonly toast = inject(ToastService);
     private readonly router = inject(Router);
+    readonly activityStore = inject(ActivityStore);
 
     readonly addMediaOpen = signal(false);
 
@@ -35,12 +33,8 @@ export class DashboardOverview {
 
     readonly processing = computed(() => this.uploadFacade.activeCount());
 
-    readonly recentActivity: ActivityEntry[] = [
-        { text: 'Imported 12 assets from Local Library', when: '2 min ago', state: 'done' },
-        { text: 'Identified "Furia Oriental"', when: '5 min ago', state: 'done' },
-        { text: 'Uploaded movie to S3', when: '8 min ago', state: 'done' },
-        { text: 'TMDB enrichment', when: '11 min ago', state: 'failed' },
-    ];
+    /** El dashboard muestra una ventana corta; Activity conserva la paginación completa. */
+    readonly recentActivity = computed(() => this.activityStore.items().slice(0, 4));
 
     constructor() {
         this.moviesApi.list().subscribe({
@@ -56,6 +50,8 @@ export class DashboardOverview {
             next: (libraries) => this.libraries.set(libraries),
             error: () => undefined,
         });
+
+        this.activityStore.load();
     }
 
     onSourceSelected(source: AddMediaSource): void {
@@ -70,5 +66,13 @@ export class DashboardOverview {
 
     openLibrary(library: Library): void {
         this.router.navigate(['/libraries']);
+    }
+
+    activityLabel(activity: ActivityItem): string {
+        return activity.resourceTitle || activity.fileName || activity.type;
+    }
+
+    activityWhen(activity: ActivityItem): string {
+        return activity.lastOccurredAt.toLocaleString();
     }
 }

@@ -26,15 +26,24 @@
     <div class="overview-grid">
         <div class="panel">
             <h2 class="panel-title">Recent Activity</h2>
-            <ul class="activity-list">
-                @for (entry of recentActivity; track entry.text) {
+            @if (activityStore.loading() && !recentActivity().length) {
+                <p class="muted">Loading activity...</p>
+            } @else if (activityStore.error() && !recentActivity().length) {
+                <p class="muted">{{ activityStore.error() }}</p>
+            } @else {
+                <ul class="activity-list">
+                @for (entry of recentActivity(); track entry.activityId) {
                     <li class="activity-item">
-                        <span class="activity-dot" [class.failed]="entry.state === 'failed'"></span>
-                        <span class="activity-text">{{ entry.text }}</span>
-                        <span class="activity-when">{{ entry.when }}</span>
+                        <span class="activity-dot" [class.failed]="entry.severity === 'ERROR'"></span>
+                        <span class="activity-text">{{ activityLabel(entry) }}</span>
+                        <span class="activity-when">{{ activityWhen(entry) }}</span>
                     </li>
                 }
-            </ul>
+                @empty {
+                    <li class="muted">No recent activity.</li>
+                }
+                </ul>
+            }
         </div>
 
         <div class="panel">
