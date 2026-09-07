@@ -28,6 +28,12 @@ export const routes: Routes = [
                 canMatch: [authGuard]
             },
             {
+                path: 'media/:id',
+                loadComponent: () =>
+                    import('./features/movies/pages/movie-detail/movie-detail').then(m => m.MovieDetail),
+                canMatch: [authGuard],
+            },
+            {
                 path: 'catalog/:id/edit',
                 loadComponent: () =>
                     import('./features/dashboard/pages/edit-media/edit-media-page').then(m => m.EditMediaPage),
