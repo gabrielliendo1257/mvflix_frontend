@@ -239,8 +239,10 @@ export class CatalogPage {
         const item = this.deleteTarget();
         if (!item) return;
         this.catalogApi.delete(this.mediaIdOf(item)).subscribe({
-            next: () => {
-                this.toast.success(`«${item.title}» eliminada.`);
+            next: (response) => {
+                this.toast.success(response.status === 202
+                    ? `Eliminación de «${item.title}» iniciada; puedes seguirla en Activity.`
+                    : `«${item.title}» eliminada.`);
                 this.deleteTarget.set(null);
                 this.confirmOpen.set(false);
                 this.store.refresh();

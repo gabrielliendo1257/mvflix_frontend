@@ -4,6 +4,7 @@ import { HttpTestingController, provideHttpClientTesting } from '@angular/common
 
 import { API_BASE_URL } from '@core/config/api-base-url';
 import { CatalogStore } from './catalog-store';
+import { CatalogApi } from './catalog-api';
 import { CatalogItem, CatalogPage } from '@features/catalog/models/catalog';
 
 function item(overrides: Partial<CatalogItem> = {}): CatalogItem {
@@ -131,5 +132,18 @@ describe('CatalogStore', () => {
 
         expect(store.selectableItems().length).toBe(1);
         expect(store.isSelected(asset)).toBeFalse();
+    });
+
+    it('conserva el status HTTP del borrado para distinguir 204 y 202', () => {
+        const api = TestBed.inject(CatalogApi);
+        let status = 0;
+
+        api.delete(1).subscribe((response) => (status = response.status));
+        http.expectOne(`${baseUrl}/web/media/1`).flush(null, { status: 202, statusText: 'Accepted' });
+        expect(status).toBe(202);
+
+        api.delete(1).subscribe((response) => (status = response.status));
+        http.expectOne(`${baseUrl}/web/media/1`).flush(null, { status: 204, statusText: 'No Content' });
+        expect(status).toBe(204);
     });
 });
