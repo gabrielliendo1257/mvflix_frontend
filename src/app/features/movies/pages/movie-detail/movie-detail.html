@@ -1,71 +1,90 @@
 <section class="movie-detail">
     @if (loading()) {
-        <p class="muted">Cargando película...</p>
-    } @else {
-        @let m = movie()!;
-        @if (notFound() || !m) {
-            <div class="empty-state">
-                <p>Película no encontrada.</p>
-            </div>
-        } @else {
-            <div class="detail-grid" [class.no-poster]="!m.poster_path">
-                @if (m.poster_path) {
-                    <img
-                        class="detail-poster"
-                        [src]="m.poster_path.startsWith('http') ? m.poster_path : 'https://image.tmdb.org/t/p/w500' + m.poster_path"
-                        [alt]="m.title"
-                    />
+        <p class="muted">Cargando media...</p>
+    } @else if (notFound()) {
+        <div class="empty-state"><p>Media no encontrada.</p></div>
+    } @else if (error()) {
+        <div class="empty-state"><p>{{ error() }}</p></div>
+    } @else if (detail(); as d) {
+        <header class="detail-header">
+            <button class="btn" type="button" (click)="goCatalog()">Volver al catálogo</button>
+            @if (can('delete')) {
+                <button class="btn btn-danger" type="button" [disabled]="saving()" (click)="confirmDeleteOpen.set(true)">Eliminar</button>
+            }
+        </header>
+
+        <div class="detail-grid" [class.no-poster]="!d.overview.posterUrl">
+            @if (d.overview.posterUrl) {
+                <img class="detail-poster" [src]="d.overview.posterUrl" [alt]="d.overview.title" />
+            }
+            <div class="detail-info">
+                <h1 class="detail-title">{{ d.overview.title }}</h1>
+                <div class="meta-row">
+                    <span class="badge">{{ d.media.kind }}</span>
+                    <span class="badge">{{ d.media.displayStatus }}</span>
+                </div>
+
+                <section class="detail-section">
+                    <h2>Overview</h2>
+                    @if (d.overview.overview) { <p class="overview">{{ d.overview.overview }}</p> }
+                    <dl class="field-list">
+                        @if (d.overview.originalTitle) { <div><dt>Original title</dt><dd>{{ d.overview.originalTitle }}</dd></div> }
+                        @if (d.overview.year) { <div><dt>Year</dt><dd>{{ d.overview.year }}</dd></div> }
+                        @if (d.overview.duration) { <div><dt>Duration</dt><dd>{{ d.overview.duration }}</dd></div> }
+                        @if (d.overview.director) { <div><dt>Director</dt><dd>{{ d.overview.director }}</dd></div> }
+                    </dl>
+                </section>
+
+                <section class="detail-section">
+                    <h2>Media</h2>
+                    <dl class="field-list">
+                        <div><dt>ID</dt><dd>{{ d.media.mediaId }}</dd></div>
+                        <div><dt>Status</dt><dd>{{ d.media.status }}</dd></div>
+                        <div><dt>Display status</dt><dd>{{ d.media.displayStatus }}</dd></div>
+                        <div><dt>Source</dt><dd>{{ d.access.source }}</dd></div>
+                    </dl>
+                </section>
+
+                @if (can('changeVisibility') || can('manageSharing')) {
+                    <section class="detail-section access-card">
+                        <h2>Access</h2>
+                        <p class="muted">Quién puede ver este contenido.</p>
+                        @if (can('changeVisibility')) {
+                            <div class="visibility-options">
+                                @for (option of visibilityOptions; track option) {
+                                    <button class="visibility-option" [class.active]="visibility() === option" [disabled]="saving()" (click)="onVisibilityChange(option)">
+                                        {{ visibilityLabel(option) }}
+                                    </button>
+                                }
+                            </div>
+                        }
+                        @if (can('manageSharing') && visibility() === 'SHARED') {
+                            <div class="shares-row">
+                                <input class="shares-input" type="text" placeholder="javier, maria..." [ngModel]="sharesInput()" (ngModelChange)="sharesInput.set($event)" (keydown.enter)="saveShares()" />
+                                <button class="btn btn-primary" type="button" [disabled]="saving()" (click)="saveShares()">Compartir</button>
+                            </div>
+                        }
+                    </section>
                 }
 
-                <div class="detail-info">
-                    <h1 class="detail-title">{{ m.title }}</h1>
-                    @if (m.year) {
-                        <p class="muted">{{ m.year }}</p>
-                    }
-                    <div class="meta-row">
-                        <span class="badge">{{ m.status }}</span>
-                        <span class="badge">{{ visibilityLabel(visibility()) }}</span>
-                    </div>
-                    @if (m.overview) {
-                        <p class="overview">{{ m.overview }}</p>
-                    }
-
-                <div class="visibility-card">
-                    <h2>Visibilidad</h2>
-                    <p class="muted">Quién puede ver esta película en la plataforma.</p>
-                    <div class="visibility-options">
-                        @for (option of visibilityOptions; track option) {
-                            <button
-                                class="visibility-option"
-                                [class.active]="visibility() === option"
-                                [disabled]="saving()"
-                                (click)="onVisibilityChange(option)"
-                            >
-                                {{ visibilityLabel(option) }}
-                            </button>
-                        }
-                    </div>
-                </div>
-
-                <div class="shares-card">
-                    <h2>Compartir con usuarios</h2>
-                    <p class="muted">Usuarios separados por coma (visibilidad compartida).</p>
-                    <div class="shares-row">
-                        <input
-                            class="shares-input"
-                            type="text"
-                            placeholder="javier, maria..."
-                            [ngModel]="sharesInput()"
-                            (ngModelChange)="sharesInput.set($event)"
-                            (keydown.enter)="saveShares()"
-                        />
-                        <button class="btn btn-primary" (click)="saveShares()" [disabled]="saving()">
-                            {{ saving() ? 'Guardando...' : 'Compartir' }}
-                        </button>
-                    </div>
-                </div>
+                @if (can('linkProvider') || can('unlinkProvider')) {
+                    <section class="detail-section provider-card">
+                        <h2>Provider</h2>
+                        <p class="muted">{{ d.provider.status }}{{ d.provider.providerId ? ' · #' + d.provider.providerId : '' }}</p>
+                        @if (can('linkProvider')) { <button class="btn btn-primary" type="button" [disabled]="saving()" (click)="openProviderSearch()">Vincular TMDB</button> }
+                        @if (can('unlinkProvider')) { <button class="btn" type="button" [disabled]="saving()" (click)="unlinkProvider()">Desvincular</button> }
+                    </section>
+                }
             </div>
         </div>
-        }
     }
+
+    <app-movie-search-modal [(isOpen)]="searchOpen" (movieSelected)="onProviderSelected($event)" />
+    <app-confirm-dialog
+        [(open)]="confirmDeleteOpen"
+        title="Eliminar media"
+        message="Esta acción no se puede deshacer."
+        confirmLabel="Eliminar"
+        (confirmed)="deleteMedia()"
+    />
 </section>
