@@ -41,3 +41,10 @@ export interface PlaybackProgressResponse {
     readonly positionSeconds: number | null;
     readonly status: string;
 }
+
+/** Snapshot técnico emitido por el player; no contiene sesión ni transporte. */
+export interface PlaybackLifecycleSnapshot {
+    readonly positionSeconds: number;
+    readonly durationSeconds: number | null;
+    readonly completed: boolean;
+}

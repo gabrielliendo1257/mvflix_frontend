@@ -8,8 +8,10 @@ import {
     OnDestroy,
     signal,
     viewChild,
+    output,
 } from '@angular/core';
 import { DOCUMENT } from '@angular/common';
+import { PlaybackLifecycleSnapshot } from '@features/player/models/playback';
 
 interface MenuState {
     kind: 'quality' | 'speed' | 'subtitles' | 'audio';
@@ -26,6 +28,7 @@ export class VideoPlayer implements AfterViewInit, OnDestroy {
     readonly poster = input<string>('');
     /** Posición de reanudación en segundos (resume del BFF). */
     readonly startTime = input(0);
+    readonly snapshot = output<PlaybackLifecycleSnapshot>();
 
     /** Error de decodificación/formato/red del propio <video>. */
     readonly mediaError = signal<string | null>(null);
@@ -75,6 +78,7 @@ export class VideoPlayer implements AfterViewInit, OnDestroy {
         video.addEventListener('volumechange', this.onVolumeChange);
         video.addEventListener('play', this.onPlayEvent);
         video.addEventListener('pause', this.onPauseEvent);
+        video.addEventListener('ended', this.onEndedEvent);
         video.addEventListener('waiting', this.onWaiting);
         video.addEventListener('playing', this.onPlayingEvent);
         video.addEventListener('seeking', this.onSeeking);
@@ -93,6 +97,7 @@ export class VideoPlayer implements AfterViewInit, OnDestroy {
             video.removeEventListener('volumechange', this.onVolumeChange);
             video.removeEventListener('play', this.onPlayEvent);
             video.removeEventListener('pause', this.onPauseEvent);
+            video.removeEventListener('ended', this.onEndedEvent);
             video.removeEventListener('waiting', this.onWaiting);
             video.removeEventListener('playing', this.onPlayingEvent);
             video.removeEventListener('seeking', this.onSeeking);
@@ -112,6 +117,7 @@ export class VideoPlayer implements AfterViewInit, OnDestroy {
 
         this.currentTime.set(video.currentTime);
         this.playedPercent.set(video.duration ? (video.currentTime / video.duration) * 100 : 0);
+        this.emitSnapshot(video, false);
     };
 
     private readonly onLoadedMetadata = (): void => {
@@ -150,9 +156,24 @@ export class VideoPlayer implements AfterViewInit, OnDestroy {
     };
 
     private readonly onPauseEvent = (): void => {
+        const video = this.videoEl()?.nativeElement;
         this.isPlaying.set(false);
         this.showControls();
+        if (video) this.emitSnapshot(video, false);
     };
+
+    private readonly onEndedEvent = (): void => {
+        const video = this.videoEl()?.nativeElement;
+        if (video) this.emitSnapshot(video, true);
+    };
+
+    private emitSnapshot(video: HTMLVideoElement, completed: boolean): void {
+        this.snapshot.emit({
+            positionSeconds: video.currentTime,
+            durationSeconds: Number.isFinite(video.duration) ? video.duration : null,
+            completed,
+        });
+    }
 
     private readonly onWaiting = (): void => {
         this.isBuffering.set(true);
