@@ -146,7 +146,7 @@ export class CatalogPage {
 
     viewDetail(item: CatalogItem): void {
         if (!item.capabilities.viewDetail || item.mediaId == null) return;
-        this.router.navigate(['/catalog', item.mediaId]);
+        this.router.navigate(['/media', item.mediaId]);
     }
 
     openDetail(item: CatalogItem, event?: Event): void {
