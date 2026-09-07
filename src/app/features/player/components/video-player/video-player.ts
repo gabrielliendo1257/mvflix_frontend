@@ -207,6 +207,7 @@ export class VideoPlayer implements AfterViewInit, OnDestroy {
             );
         }
 
+        this.mediaError.set('No se pudo reproducir el vídeo.');
         this.isBuffering.set(false);
         this.isPlaying.set(false);
     };

@@ -39,4 +39,19 @@ describe('VideoPlayer', () => {
             { positionSeconds: 120, durationSeconds: 120, completed: true },
         ]);
     });
+
+    it('expone un error visible cuando falla la reproducción', () => {
+        const video = fixture.nativeElement.querySelector('video') as HTMLVideoElement;
+        Object.defineProperty(video, 'error', {
+            configurable: true,
+            value: { code: 3, message: 'Decode error' },
+        });
+
+        video.dispatchEvent(new Event('error'));
+        fixture.detectChanges();
+
+        expect(player.mediaError()).toBe('No se pudo reproducir el vídeo.');
+        expect(fixture.nativeElement.querySelector('[role="alert"]')?.textContent)
+            .toContain('No se pudo reproducir el vídeo.');
+    });
 });
