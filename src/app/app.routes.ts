@@ -1,5 +1,6 @@
 import {Routes} from '@angular/router';
 import { authGuard } from '@core/session/auth-guard';
+import { capabilityGuard } from '@core/session/capability-guard';
 
 export const routes: Routes = [
     {
@@ -42,11 +43,13 @@ export const routes: Routes = [
             {
                 path: 'uploads',
                 loadChildren: () => import('./features/uploads/routes').then(m => m.UPLOAD_ROUTES),
+                canMatch: [authGuard, capabilityGuard('canAddMedia')],
             },
             {
                 path: 'libraries',
                 loadComponent: () =>
                     import('./features/libraries/pages/libraries-page/libraries-page').then(m => m.LibrariesPage),
+                canMatch: [authGuard, capabilityGuard('canManageLibraries')],
             },
             {
                 path: 'account',
@@ -59,7 +62,7 @@ export const routes: Routes = [
                 path: 'dashboard',
                 loadComponent: () =>
                     import('./features/dashboard/dashboard-layout/dashboard-layout').then(m => m.DashboardLayout),
-                canMatch: [authGuard],
+                canMatch: [authGuard, capabilityGuard('canAccessAdmin')],
                 children: [
                     {
                         path: '',
@@ -76,6 +79,7 @@ export const routes: Routes = [
                         path: 'activity',
                         loadComponent: () =>
                             import('./features/dashboard/pages/activity/activity-page').then(m => m.ActivityPage),
+                        canMatch: [capabilityGuard('canViewAllActivity')],
                     },
                     {
                         path: 'settings',
@@ -90,5 +94,6 @@ export const routes: Routes = [
         path: 'watch/:id',
         loadComponent: () =>
             import('./features/movies/pages/watch-page/watch-page').then(m => m.WatchPage),
+        canMatch: [authGuard],
     }
 ];

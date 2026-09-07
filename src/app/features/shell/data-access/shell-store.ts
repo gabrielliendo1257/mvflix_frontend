@@ -1,6 +1,6 @@
 import { computed, inject, Injectable, signal } from '@angular/core';
 import { toObservable } from '@angular/core/rxjs-interop';
-import { catchError, EMPTY, switchMap } from 'rxjs';
+import { catchError, finalize, of, switchMap } from 'rxjs';
 import { AuthService } from '@core/session/auth.service';
 import { ShellApi } from '@features/shell/data-access/shell-api';
 import { ShellContext } from '@features/shell/models/shell-context';
@@ -16,8 +16,10 @@ export class ShellStore {
     private readonly authService = inject(AuthService);
 
     private readonly _context = signal<ShellContext | null>(null);
+    private readonly _ready = signal(false);
 
     readonly context = this._context.asReadonly();
+    readonly ready = this._ready.asReadonly();
 
     readonly user = computed(() => this._context()?.user ?? null);
 
@@ -30,11 +32,15 @@ export class ShellStore {
     constructor() {
         toObservable(this.authService.isLogged)
             .pipe(
-                switchMap((logged) =>
-                    logged
-                        ? this.api.getContext().pipe(catchError(() => EMPTY))
-                        : EMPTY,
-                ),
+                switchMap((logged) => {
+                    this._ready.set(false);
+                    return logged
+                        ? this.api.getContext().pipe(
+                              catchError(() => of(null)),
+                              finalize(() => this._ready.set(true)),
+                          )
+                        : of(null).pipe(finalize(() => this._ready.set(true)));
+                }),
             )
             .subscribe((context) => this._context.set(context));
     }
