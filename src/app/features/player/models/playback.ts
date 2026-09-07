@@ -26,3 +26,18 @@ export interface PlaybackSession {
     /** Posición de reanudación en segundos; null hasta que exista watch history. */
     readonly resumeSeconds: number | null;
 }
+
+/** Progreso que el player reporta de forma ordenada dentro de una sesión. */
+export interface PlaybackProgressRequest {
+    readonly sequence: number;
+    readonly positionSeconds: number;
+    readonly durationSeconds: number | null;
+    readonly completed: boolean;
+}
+
+/** Resultado aceptado por Playback para el último progreso recibido. */
+export interface PlaybackProgressResponse {
+    readonly sequence: number;
+    readonly positionSeconds: number | null;
+    readonly status: string;
+}

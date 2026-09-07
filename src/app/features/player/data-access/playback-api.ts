@@ -4,6 +4,8 @@ import { map, Observable } from 'rxjs';
 import { API_BASE_URL } from '@core/config/api-base-url';
 import {
     PlaybackMediaInfo,
+    PlaybackProgressRequest,
+    PlaybackProgressResponse,
     PlaybackSession,
     PlaybackSource,
     PlaybackStrategy,
@@ -15,6 +17,12 @@ interface StartPlaybackWire {
     media: { id: number; title: string; posterPath: string | null; duration: string | null };
     playback: { strategy: string; url: string; mimeType: string | null; expiresAt: string | null };
     resume: { positionSeconds: number } | null;
+}
+
+interface PlaybackProgressResponseWire {
+    sequence: number;
+    positionSeconds: number | null;
+    status: string;
 }
 
 /**
@@ -30,6 +38,22 @@ export class PlaybackApi {
         return this.http
             .post<StartPlaybackWire>(`${this.baseUrl}/web/playback/${mediaId}/session`, null)
             .pipe(map((wire) => toSession(wire, this.baseUrl)));
+    }
+
+    recordProgress(
+        sessionId: string,
+        progress: PlaybackProgressRequest,
+    ): Observable<PlaybackProgressResponse> {
+        return this.http
+            .post<PlaybackProgressResponseWire>(
+                `${this.baseUrl}/web/playback/sessions/${sessionId}/progress`,
+                progress,
+            )
+            .pipe(map((wire) => ({
+                sequence: wire.sequence,
+                positionSeconds: wire.positionSeconds,
+                status: wire.status,
+            })));
     }
 }
 
