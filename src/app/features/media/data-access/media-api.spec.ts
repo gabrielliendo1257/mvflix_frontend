@@ -67,10 +67,17 @@ describe('MediaApi', () => {
         expect(unlink.request.method).toBe('DELETE');
         unlink.flush(detailWire());
 
-        api.deleteMedia(42).subscribe();
+        let deletionStatus: number | undefined;
+        api.deleteMedia(42).subscribe((response) => (deletionStatus = response.status));
         const deletion = http.expectOne(`${baseUrl}/web/media/42`);
         expect(deletion.request.method).toBe('DELETE');
         deletion.flush(null, { status: 204, statusText: 'No Content' });
+        expect(deletionStatus).toBe(204);
+
+        api.deleteMedia(43).subscribe((response) => (deletionStatus = response.status));
+        const pendingDeletion = http.expectOne(`${baseUrl}/web/media/43`);
+        pendingDeletion.flush(null, { status: 202, statusText: 'Accepted' });
+        expect(deletionStatus).toBe(202);
     });
 });
 

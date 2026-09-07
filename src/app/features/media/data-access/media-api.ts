@@ -1,4 +1,4 @@
-import { HttpClient } from '@angular/common/http';
+import { HttpClient, HttpResponse } from '@angular/common/http';
 import { inject, Injectable } from '@angular/core';
 import { Observable } from 'rxjs';
 import { API_BASE_URL } from '@core/config/api-base-url';
@@ -35,7 +35,10 @@ export class MediaApi {
         return this.http.delete<MediaDetail>(`${this.baseUrl}/${mediaId}/provider`);
     }
 
-    deleteMedia(mediaId: number): Observable<void> {
-        return this.http.delete<void>(`${this.baseUrl}/${mediaId}`);
+    /** Borrado: 204 completado o 202 pendiente de compensación. */
+    deleteMedia(mediaId: number): Observable<HttpResponse<void>> {
+        return this.http.delete<void>(`${this.baseUrl}/${mediaId}`, {
+            observe: 'response',
+        });
     }
 }

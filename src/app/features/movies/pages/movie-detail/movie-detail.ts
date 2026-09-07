@@ -119,8 +119,10 @@ export class MovieDetail implements OnInit {
         this.confirmDeleteOpen.set(false);
         this.saving.set(true);
         this.mediaApi.deleteMedia(mediaId).subscribe({
-            next: () => {
-                this.toast.success('Media eliminada.');
+            next: (response) => {
+                this.toast.success(response.status === 202
+                    ? 'Eliminación iniciada; puedes seguirla en Activity.'
+                    : 'Media eliminada.');
                 this.router.navigate(['/catalog']);
             },
             error: () => {
