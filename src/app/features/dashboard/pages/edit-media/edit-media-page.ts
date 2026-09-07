@@ -1,13 +1,12 @@
 import { Component, inject, signal } from '@angular/core';
 import { ActivatedRoute, Router } from '@angular/router';
 import { ToastService } from '@core/ui/toast.service';
-import { MoviesApi } from '@features/movies/data-access/movies-api';
-import { WebMovie } from '@features/movies/models/web-movie';
-import { MovieUpdateRequest } from '@features/movies/models/movie-update';
-import { MediaKind } from '@features/movies/models/media-kind';
+import { MediaApi } from '@features/media/data-access/media-api';
+import { MediaDetail, MediaMetadataUpdate } from '@features/media/models/media-detail';
 import { MediaForm, MediaFormValue } from '@features/movies/components/media-form/media-form';
-import { MovieSearchModal } from '@features/uploads/components/movie-search-modal/movie-search-modal';
+import { MediaKind } from '@features/movies/models/media-kind';
 import { MovieMetadata } from '@features/movies/models/movie-metadata';
+import { MovieSearchModal } from '@features/uploads/components/movie-search-modal/movie-search-modal';
 
 @Component({
     selector: 'app-edit-media-page',
@@ -18,10 +17,10 @@ import { MovieMetadata } from '@features/movies/models/movie-metadata';
 export class EditMediaPage {
     private readonly route = inject(ActivatedRoute);
     private readonly router = inject(Router);
-    private readonly moviesApi = inject(MoviesApi);
+    private readonly mediaApi = inject(MediaApi);
     private readonly toast = inject(ToastService);
 
-    readonly movie = signal<WebMovie | null>(null);
+    readonly detail = signal<MediaDetail | null>(null);
     readonly metadata = signal<MovieMetadata | null>(null);
     readonly initialKind = signal<MediaKind>('MOVIE');
     readonly searchOpen = signal(false);
@@ -36,11 +35,11 @@ export class EditMediaPage {
             this.loading.set(false);
             return;
         }
-        this.moviesApi.findById(id).subscribe({
-            next: (movie) => {
-                this.movie.set(movie);
-                this.metadata.set(movie);
-                this.initialKind.set(movie.kind ?? 'MOVIE');
+        this.mediaApi.detail(id).subscribe({
+            next: (detail) => {
+                this.detail.set(detail);
+                this.metadata.set(toMetadata(detail));
+                this.initialKind.set(detail.media.kind);
                 this.loading.set(false);
             },
             error: () => {
@@ -51,41 +50,59 @@ export class EditMediaPage {
     }
 
     onMovieSelected(movie: MovieMetadata): void {
-        this.metadata.set(movie);
+        const detail = this.detail();
+        if (!detail?.capabilities.linkProvider) return;
+
         this.searchOpen.set(false);
+        this.saving.set(true);
+        this.mediaApi.linkProvider(detail.media.mediaId, { tmdbId: movie.id }).subscribe({
+            next: (updated) => {
+                this.detail.set(updated);
+                this.metadata.set(toMetadata(updated));
+                this.initialKind.set(updated.media.kind);
+                this.saving.set(false);
+                this.toast.success('Proveedor vinculado.');
+            },
+            error: () => {
+                this.saving.set(false);
+                this.toast.error('No se pudo vincular el proveedor.');
+            },
+        });
+    }
+
+    unlinkProvider(): void {
+        const detail = this.detail();
+        if (!detail?.capabilities.unlinkProvider) return;
+
+        this.saving.set(true);
+        this.mediaApi.unlinkProvider(detail.media.mediaId).subscribe({
+            next: (updated) => {
+                this.detail.set(updated);
+                this.metadata.set(toMetadata(updated));
+                this.saving.set(false);
+                this.toast.success('Proveedor desvinculado.');
+            },
+            error: () => {
+                this.saving.set(false);
+                this.toast.error('No se pudo desvincular el proveedor.');
+            },
+        });
     }
 
     openSearch(): void {
-        this.searchOpen.set(true);
+        if (this.detail()?.capabilities.linkProvider) this.searchOpen.set(true);
     }
 
     onSave(value: MediaFormValue): void {
-        const movie = this.movie();
-        if (!movie) return;
-        const m = value.metadata;
-        const request: MovieUpdateRequest =
-            value.kind === 'VIDEO'
-                ? { title: m.title, kind: 'VIDEO' }
-                : {
-                      title: m.title,
-                      originalTitle: m.originalTitle,
-                      year: m.year,
-                      genres: m.genres,
-                      duration: m.duration,
-                      director: m.director,
-                      cast: m.cast,
-                      overview: m.overview,
-                      poster_path: m.poster_path,
-                      release_date: m.release_date ?? undefined,
-                      country: m.country,
-                      language: m.language,
-                      awards: m.awards,
-                      popularity: m.popularity,
-                      kind: 'MOVIE',
-                  };
+        const detail = this.detail();
+        if (!detail?.capabilities.editMetadata) return;
+
         this.saving.set(true);
-        this.moviesApi.update(movie.id, request).subscribe({
-            next: () => {
+        this.mediaApi.updateMetadata(detail.media.mediaId, toMetadataUpdate(value)).subscribe({
+            next: (updated) => {
+                this.detail.set(updated);
+                this.metadata.set(toMetadata(updated));
+                this.initialKind.set(updated.media.kind);
                 this.saving.set(false);
                 this.toast.success('Metadata actualizada.');
                 this.router.navigate(['/catalog']);
@@ -100,4 +117,47 @@ export class EditMediaPage {
     cancel(): void {
         this.router.navigate(['/catalog']);
     }
+}
+
+function toMetadata(detail: MediaDetail): MovieMetadata {
+    const overview = detail.overview;
+    return {
+        id: detail.provider.providerId ?? 0,
+        title: overview.title,
+        originalTitle: overview.originalTitle ?? '',
+        year: overview.year,
+        genres: overview.genres ?? [],
+        popularity: 5,
+        duration: overview.duration ?? '',
+        director: overview.director ?? '',
+        cast: overview.cast ?? [],
+        overview: overview.overview ?? '',
+        poster_path: overview.posterUrl,
+        release_date: '',
+        country: '',
+        language: '',
+        awards: [],
+    };
+}
+
+function toMetadataUpdate(value: MediaFormValue): MediaMetadataUpdate {
+    const metadata = value.metadata;
+    if (value.kind === 'VIDEO') return { title: metadata.title, kind: 'VIDEO' };
+    return {
+        title: metadata.title,
+        originalTitle: metadata.originalTitle,
+        year: metadata.year,
+        genres: metadata.genres,
+        duration: metadata.duration,
+        director: metadata.director,
+        cast: metadata.cast,
+        overview: metadata.overview,
+        posterUrl: metadata.poster_path,
+        releaseDate: metadata.release_date ?? null,
+        country: metadata.country,
+        language: metadata.language,
+        awards: metadata.awards,
+        popularity: metadata.popularity,
+        kind: 'MOVIE',
+    };
 }

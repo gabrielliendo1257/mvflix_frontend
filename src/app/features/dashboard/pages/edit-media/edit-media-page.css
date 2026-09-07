@@ -5,6 +5,18 @@
     max-width: 720px;
 }
 
+.provider-section {
+    margin-top: 1rem;
+    border-top: 1px solid var(--color-border);
+    padding-top: 1rem;
+}
+
+.provider-section h2 {
+    color: var(--color-heading);
+    font-size: 1rem;
+    margin: 0 0 0.4rem;
+}
+
 .head {
     display: flex;
     align-items: flex-end;

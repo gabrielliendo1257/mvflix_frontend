@@ -2,9 +2,11 @@
     <div class="head">
         <div>
             <h1 class="page-title">Edit Media</h1>
-            <p class="subtitle">{{ movie()?.title || 'Media' }}</p>
+            <p class="subtitle">{{ detail()?.overview?.title || 'Media' }}</p>
         </div>
-        <button class="btn" (click)="openSearch()">Autocomplete</button>
+        @if (detail()?.capabilities?.linkProvider) {
+            <button class="btn" type="button" [disabled]="saving()" (click)="openSearch()">Vincular TMDB</button>
+        }
     </div>
 
     @if (loading()) {
@@ -13,16 +15,30 @@
         <div class="empty-state">
             <p>Media no encontrada.</p>
         </div>
-    } @else {
-        <app-media-form
-            [initial]="metadata()"
-            [initialKind]="initialKind()"
-            [submitLabel]="saving() ? 'Guardando...' : 'Guardar'"
-            [externalDisabled]="saving()"
-            (submitted)="onSave($event)"
-        >
-            <button cancel class="btn" (click)="cancel()">Cancelar</button>
-        </app-media-form>
+    } @else if (detail(); as d) {
+        @if (d.capabilities.editMetadata) {
+            <app-media-form
+                [initial]="metadata()"
+                [initialKind]="initialKind()"
+                [submitLabel]="saving() ? 'Guardando...' : 'Guardar'"
+                [externalDisabled]="saving()"
+                (submitted)="onSave($event)"
+            >
+                <button cancel class="btn" type="button" (click)="cancel()">Cancelar</button>
+            </app-media-form>
+        } @else {
+            <p class="muted">No tienes permiso para editar esta media.</p>
+        }
+
+        @if (d.capabilities.unlinkProvider || d.provider.providerId) {
+            <section class="provider-section">
+                <h2>Provider</h2>
+                <p class="muted">{{ d.provider.status }}{{ d.provider.providerId ? ' · #' + d.provider.providerId : '' }}</p>
+                @if (d.capabilities.unlinkProvider) {
+                    <button class="btn" type="button" [disabled]="saving()" (click)="unlinkProvider()">Desvincular</button>
+                }
+            </section>
+        }
     }
 
     <app-movie-search-modal
