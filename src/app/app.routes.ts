@@ -57,6 +57,12 @@ export const routes: Routes = [
                     import('./features/account/pages/account-page/account-page').then(m => m.AccountPage),
             },
             {
+                path: 'activity',
+                loadComponent: () =>
+                    import('./features/dashboard/pages/activity/activity-page').then(m => m.ActivityPage),
+                canMatch: [authGuard],
+            },
+            {
                 // Administración: overview de operaciones, assets y actividad.
                 // Catalog/Libraries viven como destinos globales de primer nivel.
                 path: 'dashboard',
@@ -79,7 +85,6 @@ export const routes: Routes = [
                         path: 'activity',
                         loadComponent: () =>
                             import('./features/dashboard/pages/activity/activity-page').then(m => m.ActivityPage),
-                        canMatch: [capabilityGuard('canViewAllActivity')],
                     },
                     {
                         path: 'settings',

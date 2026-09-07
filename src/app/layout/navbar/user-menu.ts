@@ -64,7 +64,7 @@ import { ShellAccess } from '@layout/access';
                            (click)="close()">
                             Settings
                         </a>
-                        <a class="dropdown-item" role="menuitem" routerLink="/dashboard/activity"
+                        <a class="dropdown-item" role="menuitem" routerLink="/activity"
                            (click)="close()">
                             Activity
                         </a>

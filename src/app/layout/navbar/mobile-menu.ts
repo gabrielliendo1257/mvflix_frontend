@@ -99,7 +99,7 @@ import { DESTINATIONS } from '@layout/navbar/primary-navigation';
                         <a class="item" routerLink="/dashboard/settings" (click)="close()">
                             <app-nav-icon name="settings" /> Settings
                         </a>
-                        <a class="item" routerLink="/dashboard/activity" (click)="close()">
+                        <a class="item" routerLink="/activity" (click)="close()">
                             <app-nav-icon name="activity" /> Activity
                         </a>
                         @if (access.canAccessAdmin()) {

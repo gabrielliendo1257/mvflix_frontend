@@ -61,6 +61,6 @@ export class NotificationButton {
     readonly count = input(0);
 
     openActivity(): void {
-        this.router.navigate(['/dashboard/activity']);
+        this.router.navigate(['/activity']);
     }
 }
