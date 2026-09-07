@@ -2,7 +2,7 @@ import { Component, computed, inject, signal } from '@angular/core';
 import { FormsModule } from '@angular/forms';
 import { ActivatedRoute, Router } from '@angular/router';
 import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
-import { EnrichmentApi } from '@features/movies/data-access/enrichment-api';
+import { MediaApi } from '@features/media/data-access/media-api';
 import { MovieVisibility } from '@features/movies/models/web-movie';
 import { MediaAsset } from '@features/libraries/models/library';
 import { ActionsMenu, ActionsMenuItem } from '@shared/actions-menu';
@@ -18,6 +18,8 @@ import {
     CatalogStatusFilter,
 } from '@features/catalog/models/catalog';
 import { ToastService } from '@core/ui/toast.service';
+import { MovieSearchModal } from '@features/uploads/components/movie-search-modal/movie-search-modal';
+import { MovieMetadata } from '@features/movies/models/movie-metadata';
 
 const STATUS_OPTIONS: { value: CatalogStatusFilter; label: string }[] = [
     { value: 'ALL', label: 'Todos' },
@@ -47,6 +49,7 @@ const SORT_OPTIONS: { value: CatalogSortKey; label: string }[] = [
         FormsModule,
         VisibilityModal,
         IdentifyModal,
+        MovieSearchModal,
     ],
     templateUrl: './catalog-page.html',
     styleUrl: './catalog-page.css',
@@ -55,7 +58,7 @@ export class CatalogPage {
     readonly store = inject(CatalogStore);
 
     private readonly catalogApi = inject(CatalogApi);
-    private readonly enrichmentApi = inject(EnrichmentApi);
+    private readonly mediaApi = inject(MediaApi);
     private readonly toast = inject(ToastService);
     private readonly router = inject(Router);
     private readonly route = inject(ActivatedRoute);
@@ -76,6 +79,9 @@ export class CatalogPage {
     /** Media candidata a borrado + visibilidad del diálogo. */
     readonly deleteTarget = signal<CatalogItem | null>(null);
     readonly confirmOpen = signal(false);
+    readonly providerTarget = signal<CatalogItem | null>(null);
+    readonly providerOpen = signal(false);
+    readonly technicalTarget = signal<CatalogItem | null>(null);
 
     readonly displayStatusOf = (item: CatalogItem): string => item.displayStatus ?? item.status;
 
@@ -85,6 +91,7 @@ export class CatalogPage {
         const caps = item.capabilities;
         return caps.play || caps.viewDetail || caps.editMetadata
             || caps.changeVisibility || caps.unlinkProvider
+            || caps.manageSharing || caps.linkProvider
             || caps.identify || caps.delete;
     };
 
@@ -93,11 +100,17 @@ export class CatalogPage {
         const caps = item.capabilities;
         const actions: ActionsMenuItem[] = [];
         if (caps.play) actions.push({ label: 'Reproducir', action: () => this.play(item) });
-        if (caps.viewDetail || caps.editMetadata) {
-            actions.push({ label: 'Editar', action: () => this.edit(item) });
-        }
+        if (caps.viewDetail) actions.push({ label: 'Ver detalle', action: () => this.viewDetail(item) });
+        if (caps.editMetadata) actions.push({ label: 'Editar', action: () => this.edit(item) });
+        if (caps.viewDetail) actions.push({ label: 'Información técnica', action: () => this.openTechnical(item) });
         if (caps.changeVisibility) {
             actions.push({ label: 'Cambiar estado', action: () => this.openRowVisibility(item) });
+        }
+        if (caps.manageSharing && !caps.changeVisibility) {
+            actions.push({ label: 'Gestionar compartidos', action: () => this.openRowVisibility(item) });
+        }
+        if (caps.linkProvider) {
+            actions.push({ label: 'Vincular proveedor', action: () => this.openProvider(item) });
         }
         if (caps.identify) {
             actions.push({ label: 'Identificar', action: () => this.openIdentify(item) });
@@ -129,6 +142,45 @@ export class CatalogPage {
 
     play(item: CatalogItem): void {
         this.router.navigate(['/watch', this.mediaIdOf(item)]);
+    }
+
+    viewDetail(item: CatalogItem): void {
+        if (!item.capabilities.viewDetail || item.mediaId == null) return;
+        this.router.navigate(['/catalog', item.mediaId]);
+    }
+
+    openDetail(item: CatalogItem, event?: Event): void {
+        event?.stopPropagation();
+        this.viewDetail(item);
+    }
+
+    openTechnical(item: CatalogItem): void {
+        if (item.capabilities.viewDetail) this.technicalTarget.set(item);
+    }
+
+    closeTechnical(): void {
+        this.technicalTarget.set(null);
+    }
+
+    openProvider(item: CatalogItem): void {
+        if (item.capabilities.linkProvider && item.mediaId != null) {
+            this.providerTarget.set(item);
+            this.providerOpen.set(true);
+        }
+    }
+
+    onProviderSelected(movie: MovieMetadata): void {
+        const item = this.providerTarget();
+        if (!item || !item.capabilities.linkProvider) return;
+        this.providerOpen.set(false);
+        this.mediaApi.linkProvider(this.mediaIdOf(item), { tmdbId: movie.id }).subscribe({
+            next: () => {
+                this.providerTarget.set(null);
+                this.toast.success('Proveedor vinculado.');
+                this.store.refresh();
+            },
+            error: () => this.toast.error('No se pudo vincular el proveedor.'),
+        });
     }
 
     edit(item: CatalogItem): void {
@@ -169,7 +221,7 @@ export class CatalogPage {
     }
 
     unlinkProvider(item: CatalogItem): void {
-        this.enrichmentApi.unlink(this.mediaIdOf(item)).subscribe({
+        this.mediaApi.unlinkProvider(this.mediaIdOf(item)).subscribe({
             next: () => {
                 this.toast.success('Proveedor desvinculado.');
                 this.store.refresh();
