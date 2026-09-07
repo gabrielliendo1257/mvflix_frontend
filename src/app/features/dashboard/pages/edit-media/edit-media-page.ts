@@ -64,8 +64,8 @@ export class EditMediaPage {
         if (!movie) return;
         const m = value.metadata;
         const request: MovieUpdateRequest =
-            value.kind === 'OTHER'
-                ? { title: m.title, kind: 'OTHER' }
+            value.kind === 'VIDEO'
+                ? { title: m.title, kind: 'VIDEO' }
                 : {
                       title: m.title,
                       originalTitle: m.originalTitle,

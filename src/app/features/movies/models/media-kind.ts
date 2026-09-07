@@ -1,1 +1,1 @@
-export type MediaKind = 'MOVIE' | 'OTHER';
+export type MediaKind = 'MOVIE' | 'VIDEO';
