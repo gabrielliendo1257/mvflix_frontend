@@ -2,7 +2,7 @@
     <h1 class="page-title">Activity</h1>
 
     @if (uploads().length) {
-        <h2 class="section-title">Uploads</h2>
+        <h2 class="section-title">Transfers in this browser</h2>
         <div class="job-list">
             @for (task of uploads(); track task.uploadId) {
                 <div class="job">
@@ -22,7 +22,7 @@
         </div>
     }
 
-    <h2 class="section-title">Activity feed</h2>
+    <h2 class="section-title">Server activity</h2>
     @if (activityStore.loading() && !activityStore.items().length) {
         <div class="job">Loading activity...</div>
     } @else if (activityStore.error() && !activityStore.items().length) {
@@ -31,10 +31,10 @@
             <button class="btn-back-inline" type="button" (click)="activityStore.retry()">Retry</button>
         </div>
     } @else {
-    <div class="job-list">
-        @for (activity of activityStore.items(); track activity.activityId) {
-            <div class="job">
-                <div class="job-head">
+        <div class="job-list">
+            @for (activity of activityStore.items(); track activity.activityId) {
+                <div class="job">
+                    <div class="job-head">
                         <span class="job-text">{{ activityLabel(activity) }}</span>
                         <span class="job-state" [class.failed]="activity.severity === 'ERROR'" [class.done]="activity.status === 'COMPLETED'">
                             {{ activity.status }}
@@ -45,20 +45,20 @@
                         <span class="task-error">{{ activity.failureCode }}</span>
                     }
                 </div>
-        } @empty {
-            <div class="job">No activity yet.</div>
-        }
-    </div>
-    @if (activityStore.error()) {
-        <div class="job">
-            <span class="job-text">{{ activityStore.error() }}</span>
-            <button class="btn-back-inline" type="button" (click)="activityStore.retry()">Retry</button>
+            } @empty {
+                <div class="job">No server activity yet.</div>
+            }
         </div>
-    }
-    @if (activityStore.hasMore()) {
-        <button class="btn-back-inline" type="button" [disabled]="activityStore.loading()" (click)="activityStore.loadMore()">
-            {{ activityStore.loading() ? 'Loading...' : 'Load more' }}
-        </button>
-    }
+        @if (activityStore.error()) {
+            <div class="job">
+                <span class="job-text">{{ activityStore.error() }}</span>
+                <button class="btn-back-inline" type="button" (click)="activityStore.retry()">Retry</button>
+            </div>
+        }
+        @if (activityStore.hasMore()) {
+            <button class="btn-back-inline" type="button" [disabled]="activityStore.loading()" (click)="activityStore.loadMore()">
+                {{ activityStore.loading() ? 'Loading...' : 'Load more' }}
+            </button>
+        }
     }
 </section>

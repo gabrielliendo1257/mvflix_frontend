@@ -1,6 +1,7 @@
 import { Component, inject } from '@angular/core';
 import { UploadFacade } from '@features/uploads/services/upload-facade';
 import { ActivityStore } from '@features/activity/data-access/activity-store';
+import { ActivityItem } from '@features/activity/models/activity';
 
 @Component({
     selector: 'app-activity-page',
@@ -15,7 +16,6 @@ export class ActivityPage {
 
     readonly uploads = this.uploadFacade.tasks;
 
-
     constructor() {
         this.activityStore.load();
     }
@@ -27,8 +27,8 @@ export class ActivityPage {
         return 'RUNNING';
     }
 
-    activityLabel(activity: { resourceTitle: string | null; type: string }): string {
-        return activity.resourceTitle || activity.type;
+    activityLabel(activity: ActivityItem): string {
+        return activity.resourceTitle || activity.fileName || activity.type;
     }
 
     formatActivityDate(value: Date): string {
