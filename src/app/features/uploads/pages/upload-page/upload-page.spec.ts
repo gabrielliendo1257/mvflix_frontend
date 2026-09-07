@@ -1,6 +1,8 @@
 import { provideHttpClient } from '@angular/common/http';
 import { ComponentFixture, TestBed } from '@angular/core/testing';
 
+import { MovieMetadata } from '@features/movies/models/movie-metadata';
+import { UploadFacade } from '@features/uploads/services/upload-facade';
 import { UploadPage } from './upload-page';
 
 describe('UploadPage', () => {
@@ -22,4 +24,36 @@ describe('UploadPage', () => {
   it('should create', () => {
     expect(component).toBeTruthy();
   });
+
+  it('rechaza una película sin candidato TMDB desde la UI', () => {
+    const facade = (component as unknown as { uploadFacade: UploadFacade }).uploadFacade;
+    const toast = (component as unknown as { toast: { warning: (message: string) => void } }).toast;
+    spyOn(facade, 'startUpload');
+    const warning = spyOn(toast, 'warning');
+    component.file.set(new File(['movie'], 'movie.mp4', { type: 'video/mp4' }));
+
+    component.onSubmit({ kind: 'MOVIE', metadata: metadata('Movie') });
+
+    expect(facade.startUpload).not.toHaveBeenCalled();
+    expect(warning).toHaveBeenCalled();
+  });
+
+  it('permite un vídeo sin candidato y lo inicia como VIDEO', () => {
+    const facade = (component as unknown as { uploadFacade: UploadFacade }).uploadFacade;
+    const startUpload = spyOn(facade, 'startUpload').and.returnValue('upload-1');
+    const file = new File(['video'], 'recording.mp4', { type: 'video/mp4' });
+    component.file.set(file);
+
+    component.onSubmit({ kind: 'VIDEO', metadata: metadata('Recording') });
+
+    expect(startUpload).toHaveBeenCalledWith(file, jasmine.objectContaining({ id: 0 }), 'VIDEO', { visibility: 'PRIVATE' });
+  });
 });
+
+function metadata(title: string): MovieMetadata {
+  return {
+    id: 0, title, originalTitle: '', year: null, genres: [], popularity: 5,
+    duration: '', director: '', cast: [], overview: '', poster_path: null,
+    release_date: '', country: '', language: '', awards: [],
+  };
+}

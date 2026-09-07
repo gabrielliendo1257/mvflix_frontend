@@ -73,7 +73,7 @@ export interface StartAddMediaCommand {
         mimeType: string;
     };
     movie: {
-        providerId: number;
+        providerId: number | null;
         draft: MovieDraft;
     };
     access?: InitialAccess;

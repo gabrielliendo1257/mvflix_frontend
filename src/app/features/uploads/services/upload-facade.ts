@@ -87,8 +87,8 @@ export class UploadFacade {
             ...tasks,
         ]);
 
-        // Defensa local del INVALID_INTENT del BFF: sin candidato no se viaja.
-        if (!Number.isFinite(metadata.id) || metadata.id <= 0) {
+        // Las películas necesitan proveedor; los vídeos genéricos no.
+        if (kind === 'MOVIE' && (!Number.isFinite(metadata.id) || metadata.id <= 0)) {
             this.fail(uploadId, 'Selecciona un candidato primero.', 'PREPARING_FAILED');
             return uploadId;
         }
@@ -395,7 +395,7 @@ function toCommand(
             mimeType: file.type || 'application/octet-stream',
         },
         movie: {
-            providerId: metadata.id,
+            providerId: kind === 'MOVIE' ? metadata.id : null,
             draft: toDraft(metadata, kind),
         },
         access,
@@ -414,7 +414,7 @@ function toPending(
         addMediaId: process.addMediaId,
         movieId: process.movieId,
         fileFingerprint,
-        providerId: task.metadata.id,
+        providerId: task.kind === 'MOVIE' ? task.metadata.id : null,
         draft: toDraft(task.metadata, task.kind),
         access: task.access,
     };
@@ -462,7 +462,7 @@ function toDraft(metadata: MovieMetadata, kind: MediaKind): MovieDraft {
 /** Reconstruye la metadata mínima para reintentos desde un proceso persistido. */
 function pendingMetadata(pending: PendingAddMedia): MovieMetadata {
     return {
-        id: pending.providerId,
+        id: pending.providerId ?? 0,
         title: pending.draft.title,
         originalTitle: pending.draft.originalTitle ?? '',
         year: pending.draft.year ?? null,

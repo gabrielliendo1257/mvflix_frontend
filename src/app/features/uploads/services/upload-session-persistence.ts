@@ -11,7 +11,7 @@ export interface PendingAddMedia {
     addMediaId: string | null;
     movieId: number | null;
     fileFingerprint: UploadFileFingerprint;
-    providerId: number;
+    providerId: number | null;
     draft: MovieDraft;
     access?: InitialAccess;
 }

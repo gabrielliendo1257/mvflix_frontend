@@ -41,7 +41,7 @@ export class UploadPage {
     readonly searchOpen = signal(false);
     readonly taskId = signal<string | null>(null);
 
-    /** Candidato TMDB identificado; sin él el BFF rechaza el alta (INVALID_INTENT). */
+    /** Candidato TMDB identificado; solo es obligatorio para contenido MOVIE. */
     readonly identified = signal<{ providerId: number; title: string; year: number | null } | null>(null);
 
     // Acceso inicial del contenido (el BFF lo aplica al crear el draft).
@@ -124,7 +124,7 @@ export class UploadPage {
         }
 
         const candidate = this.identified();
-        if (!candidate) {
+        if (value.kind === 'MOVIE' && !candidate) {
             // Espejo del INVALID_INTENT del BFF: sin candidato no se crea nada.
             this.toast.warning('Selecciona un candidato primero (Autocomplete).');
             return;
@@ -133,8 +133,8 @@ export class UploadPage {
         const access = this.buildAccess();
         if (access === null) return;
 
-        // El form no conoce el id del proveedor: la identidad viene del candidato.
-        const metadata: MovieMetadata = { ...value.metadata, id: candidate.providerId };
+        // Los vídeos genéricos no tienen proveedor; el 0 solo satisface el modelo local.
+        const metadata: MovieMetadata = { ...value.metadata, id: candidate?.providerId ?? 0 };
 
         this.taskId.set(this.uploadFacade.startUpload(file, metadata, value.kind, access));
     }

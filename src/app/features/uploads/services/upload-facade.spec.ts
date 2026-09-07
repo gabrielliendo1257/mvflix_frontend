@@ -125,4 +125,17 @@ describe('UploadFacade', () => {
     expect(task?.diagnostics?.uploadHost).toBe('minio.test');
     expect(task?.diagnostics?.uploadHost).not.toContain('X-Amz-Signature');
   });
+
+  it('envía providerId null para un vídeo genérico', () => {
+    addMediaApi.start.and.returnValue(of({
+      addMediaId: 'add-video', phase: 'READY', movieId: 7, uploadId: null, upload: null, failureCode: null,
+    }));
+
+    service.startUpload(new File(['video'], 'recording.mp4', { type: 'video/mp4' }),
+      { id: 0, title: 'Recording' } as MovieMetadata, 'VIDEO');
+
+    expect(addMediaApi.start).toHaveBeenCalledWith(jasmine.objectContaining({
+      movie: jasmine.objectContaining({ providerId: null, draft: jasmine.objectContaining({ kind: 'VIDEO' }) }),
+    }));
+  });
 });
