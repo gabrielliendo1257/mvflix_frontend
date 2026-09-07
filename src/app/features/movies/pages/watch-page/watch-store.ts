@@ -1,8 +1,18 @@
-import { Injectable, inject, signal } from '@angular/core';
+import { DestroyRef, Injectable, inject, signal } from '@angular/core';
 import { HttpErrorResponse } from '@angular/common/http';
 import { MoviesApi } from '@features/movies/data-access/movies-api';
 import { PlaybackApi } from '@features/player/data-access/playback-api';
 import { WebMovie } from '@features/movies/models/web-movie';
+import { PlaybackLifecycleSnapshot } from '@features/player/models/playback';
+import { EMPTY, Subject, catchError, concatMap } from 'rxjs';
+
+const PROGRESS_INTERVAL_MS = 10_000;
+
+interface ProgressEvent {
+    sessionId: string;
+    sequence: number;
+    snapshot: PlaybackLifecycleSnapshot;
+}
 
 /**
  * Estado de la experiencia de reproducción para una navegación.
@@ -21,9 +31,38 @@ export class WatchStore {
     readonly overview = signal('');
     /** Posición de reanudación (segundos) reportada por la sesión. */
     readonly resumeSeconds = signal<number | null>(null);
+    readonly sessionId = signal<string | null>(null);
     readonly loading = signal(true);
     /** Mensaje legible cuando la sesión no pudo componerse. */
     readonly error = signal<string | null>(null);
+
+    private readonly progressEvents = new Subject<ProgressEvent>();
+    private nextSequence = 1;
+    private lastProgressAt = 0;
+    private latestSnapshot: PlaybackLifecycleSnapshot | null = null;
+    private lastEnqueuedSnapshot: PlaybackLifecycleSnapshot | null = null;
+
+    constructor() {
+        const destroyRef = inject(DestroyRef);
+        this.progressEvents
+            .pipe(
+                concatMap(({ sessionId, sequence, snapshot }) =>
+                    this.playbackApi.recordProgress(sessionId, {
+                        sequence,
+                        positionSeconds: Math.max(0, Math.round(snapshot.positionSeconds)),
+                        durationSeconds: snapshot.durationSeconds == null
+                            ? null
+                            : Math.max(0, Math.round(snapshot.durationSeconds)),
+                        completed: snapshot.completed,
+                    }).pipe(
+                        // Watch history is best effort; never interrupt playback.
+                        catchError(() => EMPTY),
+                    ),
+                ),
+            )
+            .subscribe();
+        destroyRef.onDestroy(() => this.progressEvents.complete());
+    }
 
     load(id: number): void {
         this.reset();
@@ -52,6 +91,9 @@ export class WatchStore {
                 if (!this.poster()) this.poster.set(resolvePath(session.media.posterPath));
                 if (!this.title()) this.title.set(session.media.title);
                 this.resumeSeconds.set(session.resumeSeconds);
+                this.sessionId.set(session.sessionId);
+                this.nextSequence = 1;
+                this.lastProgressAt = 0;
                 this.loading.set(false);
             },
             error: (error: unknown) => {
@@ -59,6 +101,36 @@ export class WatchStore {
                 this.error.set(toMessage(error));
             },
         });
+    }
+
+    onSnapshot(snapshot: PlaybackLifecycleSnapshot): void {
+        this.latestSnapshot = snapshot;
+        this.enqueueIfDue(snapshot);
+    }
+
+    onPaused(): void {
+        if (this.latestSnapshot && this.latestSnapshot !== this.lastEnqueuedSnapshot) {
+            this.enqueue(this.latestSnapshot);
+        }
+    }
+
+    private enqueueIfDue(snapshot: PlaybackLifecycleSnapshot): void {
+        const sessionId = this.sessionId();
+        if (!sessionId) return;
+
+        const now = Date.now();
+        const forced = snapshot.completed || !this.lastProgressAt;
+        if (!forced && now - this.lastProgressAt < PROGRESS_INTERVAL_MS) return;
+
+        this.enqueue(snapshot);
+    }
+
+    private enqueue(snapshot: PlaybackLifecycleSnapshot): void {
+        const sessionId = this.sessionId();
+        if (!sessionId) return;
+        this.lastProgressAt = Date.now();
+        this.lastEnqueuedSnapshot = snapshot;
+        this.progressEvents.next({ sessionId, sequence: this.nextSequence++, snapshot });
     }
 
     private reset(): void {
@@ -69,7 +141,12 @@ export class WatchStore {
         this.year.set('');
         this.overview.set('');
         this.resumeSeconds.set(null);
+        this.sessionId.set(null);
         this.error.set(null);
+        this.nextSequence = 1;
+        this.lastProgressAt = 0;
+        this.latestSnapshot = null;
+        this.lastEnqueuedSnapshot = null;
     }
 
     private resolvePosterUrl(posterPath: string | null | undefined): string | null {

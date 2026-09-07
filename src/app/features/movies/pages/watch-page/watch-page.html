@@ -44,6 +44,8 @@
                     [src]="videoSrc()"
                     [poster]="poster()"
                     [startTime]="resumeSeconds() ?? 0"
+                    (snapshot)="watchStore.onSnapshot($event)"
+                    (paused)="watchStore.onPaused()"
                 ></app-video-player>
             </div>
 

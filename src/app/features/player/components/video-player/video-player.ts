@@ -29,6 +29,7 @@ export class VideoPlayer implements AfterViewInit, OnDestroy {
     /** Posición de reanudación en segundos (resume del BFF). */
     readonly startTime = input(0);
     readonly snapshot = output<PlaybackLifecycleSnapshot>();
+    readonly paused = output<void>();
 
     /** Error de decodificación/formato/red del propio <video>. */
     readonly mediaError = signal<string | null>(null);
@@ -159,7 +160,10 @@ export class VideoPlayer implements AfterViewInit, OnDestroy {
         const video = this.videoEl()?.nativeElement;
         this.isPlaying.set(false);
         this.showControls();
-        if (video) this.emitSnapshot(video, false);
+        if (video) {
+            this.emitSnapshot(video, false);
+            this.paused.emit();
+        }
     };
 
     private readonly onEndedEvent = (): void => {
