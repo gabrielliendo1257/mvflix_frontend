@@ -1,5 +1,5 @@
 import { MediaKind } from '@features/movies/models/media-kind';
-import { MovieMetadata } from '@features/movies/models/movie-metadata';
+import { MediaDraft } from '@features/movies/models/media-draft';
 import { InitialAccess, UploadFileFingerprint } from '@features/uploads/models/add-media';
 
 /** Estados que le interesan a la UX; el detalle fino vive en AddMediaPhase del BFF. */
@@ -40,12 +40,13 @@ export interface UploadTask {
     readonly uploadId: string;
     readonly addMediaId: string | null;
     readonly movieId: number | null;
+    readonly providerId: number | null;
     readonly file: File | null;
     readonly fileName: string;
     readonly fileFingerprint: UploadFileFingerprint | null;
     readonly progress: number;
     readonly state: UploadState;
-    readonly metadata: MovieMetadata;
+    readonly metadata: MediaDraft;
     readonly kind: MediaKind;
     /** Preferencia de acceso con la que se inició (o iniciará) el proceso. */
     readonly access?: InitialAccess;

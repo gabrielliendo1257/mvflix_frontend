@@ -1,7 +1,7 @@
 import { provideHttpClient } from '@angular/common/http';
 import { ComponentFixture, TestBed } from '@angular/core/testing';
 
-import { MovieMetadata } from '@features/movies/models/movie-metadata';
+import { MediaDraft } from '@features/movies/models/media-draft';
 import { UploadFacade } from '@features/uploads/services/upload-facade';
 import { UploadPage } from './upload-page';
 
@@ -46,13 +46,13 @@ describe('UploadPage', () => {
 
     component.onSubmit({ kind: 'VIDEO', metadata: metadata('Recording') });
 
-    expect(startUpload).toHaveBeenCalledWith(file, jasmine.objectContaining({ id: 0 }), 'VIDEO', { visibility: 'PRIVATE' });
+    expect(startUpload).toHaveBeenCalledWith(file, jasmine.objectContaining({ title: 'Recording' }), 'VIDEO', { visibility: 'PRIVATE' }, null);
   });
 });
 
-function metadata(title: string): MovieMetadata {
+function metadata(title: string): MediaDraft {
   return {
-    id: 0, title, originalTitle: '', year: null, genres: [], popularity: 5,
+    title, originalTitle: '', year: null, genres: [], popularity: 5,
     duration: '', director: '', cast: [], overview: '', poster_path: null,
     release_date: '', country: '', language: '', awards: [],
   };

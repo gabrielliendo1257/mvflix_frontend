@@ -7,7 +7,8 @@ import { ToastService } from '@core/ui/toast.service';
 import { UploadFacade } from '@features/uploads/services/upload-facade';
 import { ACTIVE_UPLOAD_STATES } from '@features/uploads/models/upload-task';
 import { InitialAccess, InitialVisibility } from '@features/uploads/models/add-media';
-import { MovieMetadata } from '@features/movies/models/movie-metadata';
+import { MediaDraft } from '@features/movies/models/media-draft';
+import { ProviderCandidate } from '@features/movies/models/provider-candidate';
 import { MediaForm, MediaFormValue } from '@features/movies/components/media-form/media-form';
 import { MovieSearchModal } from '@features/uploads/components/movie-search-modal/movie-search-modal';
 import { ChipsInput } from '@features/uploads/components/chips-input/chips-input';
@@ -30,14 +31,14 @@ export class UploadPage {
     private readonly uploadFacade = inject(UploadFacade);
     private readonly toast = inject(ToastService);
 
-    private readonly draftSubject = new Subject<MovieMetadata>();
+    private readonly draftSubject = new Subject<MediaDraft>();
 
     readonly fileInput = viewChild<ElementRef<HTMLInputElement>>('fileInput');
 
     readonly visibilityOptions = VISIBILITY_OPTIONS;
 
     readonly file = signal<File | null>(null);
-    readonly metadata = signal<MovieMetadata | null>(null);
+    readonly metadata = signal<MediaDraft | null>(null);
     readonly searchOpen = signal(false);
     readonly taskId = signal<string | null>(null);
 
@@ -97,8 +98,9 @@ export class UploadPage {
         this.searchOpen.set(true);
     }
 
-    onMovieSelected(movie: MovieMetadata): void {
-        this.metadata.set(movie);
+    onMovieSelected(movie: ProviderCandidate): void {
+        const { id: _providerId, ...draft } = movie;
+        this.metadata.set(draft);
         this.identified.set({
             providerId: movie.id,
             title: movie.title,
@@ -112,7 +114,7 @@ export class UploadPage {
         this.metadata.set(null);
     }
 
-    onMetadataChange(metadata: MovieMetadata): void {
+    onMetadataChange(metadata: MediaDraft): void {
         this.draftSubject.next(metadata);
     }
 
@@ -133,10 +135,9 @@ export class UploadPage {
         const access = this.buildAccess();
         if (access === null) return;
 
-        // Los vídeos genéricos no tienen proveedor; el 0 solo satisface el modelo local.
-        const metadata: MovieMetadata = { ...value.metadata, id: candidate?.providerId ?? 0 };
-
-        this.taskId.set(this.uploadFacade.startUpload(file, metadata, value.kind, access));
+        this.taskId.set(this.uploadFacade.startUpload(
+            file, value.metadata, value.kind, access, candidate?.providerId ?? null,
+        ));
     }
 
     formatFileSize(bytes: number): string {
@@ -172,7 +173,7 @@ export class UploadPage {
         const raw = localStorage.getItem(DRAFT_METADATA_KEY);
         if (raw) {
             try {
-                this.metadata.set(JSON.parse(raw) as MovieMetadata);
+                this.metadata.set(JSON.parse(raw) as MediaDraft);
             } catch {
                 localStorage.removeItem(DRAFT_METADATA_KEY);
             }

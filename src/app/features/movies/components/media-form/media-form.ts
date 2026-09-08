@@ -1,13 +1,13 @@
 import { Component, effect, inject, input, OnInit, output, signal } from '@angular/core';
 import { NonNullableFormBuilder, ReactiveFormsModule, Validators } from '@angular/forms';
 import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
-import { MovieMetadata } from '@features/movies/models/movie-metadata';
+import { MediaDraft } from '@features/movies/models/media-draft';
 import { MediaKind } from '@features/movies/models/media-kind';
 import { ChipsInput } from '@features/uploads/components/chips-input/chips-input';
 
 export interface MediaFormValue {
     kind: MediaKind;
-    metadata: MovieMetadata;
+    metadata: MediaDraft;
 }
 
 @Component({
@@ -19,13 +19,13 @@ export interface MediaFormValue {
 export class MediaForm implements OnInit {
     private readonly fb = inject(NonNullableFormBuilder);
 
-    readonly initial = input<MovieMetadata | null>(null);
+    readonly initial = input<MediaDraft | null>(null);
     readonly initialKind = input<MediaKind>('MOVIE');
     readonly submitLabel = input('Guardar');
     readonly externalDisabled = input(false);
 
     readonly submitted = output<MediaFormValue>();
-    readonly valueChange = output<MovieMetadata>();
+    readonly valueChange = output<MediaDraft>();
 
     readonly kind = signal<MediaKind>('MOVIE');
 
@@ -61,7 +61,7 @@ export class MediaForm implements OnInit {
 
         this.form.valueChanges
             .pipe(takeUntilDestroyed())
-            .subscribe(() => this.valueChange.emit(this.form.getRawValue() as MovieMetadata));
+            .subscribe(() => this.valueChange.emit(this.form.getRawValue() as MediaDraft));
     }
 
     ngOnInit(): void {
@@ -83,7 +83,7 @@ export class MediaForm implements OnInit {
         }
         this.submitted.emit({
             kind: this.kind(),
-            metadata: this.form.getRawValue() as MovieMetadata,
+            metadata: this.form.getRawValue() as MediaDraft,
         });
     }
 }

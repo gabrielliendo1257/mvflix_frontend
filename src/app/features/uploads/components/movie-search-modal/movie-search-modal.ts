@@ -15,7 +15,7 @@ import {
 } from 'rxjs';
 import { AddMediaApi } from '@features/uploads/data-access/add-media-api';
 import { MovieCandidate, MovieCandidatePreview } from '@features/uploads/models/add-media';
-import { MovieMetadata } from '@features/movies/models/movie-metadata';
+import { ProviderCandidate } from '@features/movies/models/provider-candidate';
 
 const MIN_QUERY_LENGTH = 2;
 const SEARCH_DEBOUNCE_MS = 300;
@@ -35,7 +35,7 @@ export class MovieSearchModal {
     private readonly cache = new Map<string, MovieCandidate[]>();
 
     isOpen = model(false);
-    movieSelected = output<MovieMetadata>();
+    movieSelected = output<ProviderCandidate>();
 
     readonly query = signal('');
     readonly results = signal<MovieCandidate[]>([]);
@@ -126,7 +126,7 @@ export class MovieSearchModal {
     }
 }
 
-function toMetadata(preview: MovieCandidatePreview): MovieMetadata {
+function toMetadata(preview: MovieCandidatePreview): ProviderCandidate {
     return {
         id: preview.providerId,
         title: preview.title,
