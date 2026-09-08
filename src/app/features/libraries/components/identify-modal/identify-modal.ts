@@ -3,13 +3,17 @@ import { ScrollLock } from '@shared/scroll-lock';
 import { FormsModule } from '@angular/forms';
 import { debounceTime, distinctUntilChanged, filter, map, Subject, switchMap } from 'rxjs';
 import { LibrariesApi } from '@features/libraries/data-access/libraries-api';
-import { MediaAsset } from '@features/libraries/models/library';
 import { MediaKind } from '@features/movies/models/media-kind';
 import { EnrichmentSearchResult } from '@features/movies/models/enrichment';
 import { EnrichmentApi } from '@features/movies/data-access/enrichment-api';
 
 const MIN_QUERY_LENGTH = 2;
 const SEARCH_DEBOUNCE_MS = 300;
+
+export interface IdentifyTarget {
+    readonly id: number;
+    readonly label: string;
+}
 
 @Component({
     selector: 'app-identify-modal',
@@ -24,7 +28,7 @@ export class IdentifyModal {
     private readonly searchSubject = new Subject<string>();
 
     readonly isOpen = model(false);
-    readonly asset = input<MediaAsset | null>(null);
+    readonly asset = input<IdentifyTarget | null>(null);
 
     readonly identified = output<void>();
 

@@ -8,8 +8,7 @@ import { MovieVisibility } from '@features/movies/models/web-movie';
 import { ActionsMenu, ActionsMenuItem } from '@shared/actions-menu';
 import { ConfirmDialog } from '@shared/confirm-dialog';
 import { VisibilityModal } from '@features/movies/components/visibility-modal/visibility-modal';
-import { IdentifyModal } from '@features/libraries/components/identify-modal/identify-modal';
-import { MediaAsset } from '@features/libraries/models/library';
+import { IdentifyModal, IdentifyTarget } from '@features/libraries/components/identify-modal/identify-modal';
 import { CatalogApi } from '@features/catalog/data-access/catalog-api';
 import { CatalogStore } from '@features/catalog/data-access/catalog-store';
 import {
@@ -74,7 +73,7 @@ export class CatalogPage {
     } | null>(null);
 
     /** ASSET a identificar desde la grilla (reutiliza el modal de libraries). */
-    readonly identifyTarget = signal<MediaAsset | null>(null);
+    readonly identifyTarget = signal<IdentifyTarget | null>(null);
     readonly identifyOpen = signal(false);
 
     /** Media candidata a borrado + visibilidad del diálogo. */
@@ -228,12 +227,7 @@ export class CatalogPage {
         if (item.assetId == null) return;
         this.identifyTarget.set({
             id: item.assetId,
-            libraryId: 0,
-            relativePath: item.title,
-            size: 0,
-            mimeType: '',
-            status: 'UNIDENTIFIED',
-            movieId: null,
+            label: item.title,
         });
         this.identifyOpen.set(true);
     }

@@ -8,7 +8,7 @@ import { Library, MediaAsset } from '@features/libraries/models/library';
 import { MovieVisibility } from '@features/movies/models/web-movie';
 import { VisibilityModal } from '@features/movies/components/visibility-modal/visibility-modal';
 import { CatalogJob } from '@features/catalog/models/catalog';
-import { IdentifyModal } from '@features/libraries/components/identify-modal/identify-modal';
+import { IdentifyModal, IdentifyTarget } from '@features/libraries/components/identify-modal/identify-modal';
 import { BytesPipe } from '@shared/pipes/bytes.pipe';
 import { ActionsMenu, ActionsMenuItem } from '@shared/actions-menu';
 
@@ -48,7 +48,7 @@ export class LibrariesPage {
     readonly loadingAssets = signal(false);
     readonly unidentifiedCount = signal(0);
 
-    readonly identifyTarget = signal<MediaAsset | null>(null);
+    readonly identifyTarget = signal<IdentifyTarget | null>(null);
     readonly identifyOpen = signal(false);
 
     readonly visibilityTarget = signal<VisibilityTarget | null>(null);
@@ -266,7 +266,7 @@ export class LibrariesPage {
     }
 
     openIdentify(asset: MediaAsset): void {
-        this.identifyTarget.set(asset);
+        this.identifyTarget.set({ id: asset.id, label: asset.relativePath });
         this.identifyOpen.set(true);
     }
 

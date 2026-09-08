@@ -7,8 +7,8 @@
             </div>
 
             <div class="body">
-                @if (asset(); as asset) {
-                    <p class="asset-name">{{ asset.relativePath }}</p>
+                @if (asset(); as target) {
+                    <p class="asset-name">{{ target.label }}</p>
                 }
 
                 <div class="kind-row">
