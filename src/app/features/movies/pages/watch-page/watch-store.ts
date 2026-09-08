@@ -4,7 +4,7 @@ import { MoviesApi } from '@features/movies/data-access/movies-api';
 import { PlaybackApi } from '@features/player/data-access/playback-api';
 import { WebMovie } from '@features/movies/models/web-movie';
 import { PlaybackLifecycleSnapshot } from '@features/player/models/playback';
-import { EMPTY, Subject, catchError, concatMap } from 'rxjs';
+import { EMPTY, Subject, catchError, concatMap, switchMap } from 'rxjs';
 
 const PROGRESS_INTERVAL_MS = 10_000;
 
@@ -37,6 +37,7 @@ export class WatchStore {
     readonly error = signal<string | null>(null);
 
     private readonly progressEvents = new Subject<ProgressEvent>();
+    private readonly loadRequests = new Subject<number>();
     private nextSequence = 1;
     private lastProgressAt = 0;
     private latestSnapshot: PlaybackLifecycleSnapshot | null = null;
@@ -61,46 +62,57 @@ export class WatchStore {
                 ),
             )
             .subscribe();
-        destroyRef.onDestroy(() => this.progressEvents.complete());
+
+        this.loadRequests
+            .pipe(switchMap((id) => this.moviesApi.findById(id).pipe(
+                catchError((error: unknown) => {
+                    this.loading.set(false);
+                    this.error.set(toMessage(error));
+                    return EMPTY;
+                }),
+            )))
+            .subscribe({
+                next: (movie) => {
+                    this.movie.set(movie);
+                    this.title.set(movie.title);
+                    this.year.set(movie.release_date?.slice(0, 4) ?? '');
+                    this.overview.set(movie.overview ?? '');
+                    const posterUrl = this.resolvePosterUrl(movie.poster_path);
+                    if (posterUrl) this.poster.set(posterUrl);
+                },
+            });
+
+        this.loadRequests
+            .pipe(switchMap((id) => this.playbackApi.start(id).pipe(
+                catchError((error: unknown) => {
+                    this.loading.set(false);
+                    this.error.set(toMessage(error));
+                    return EMPTY;
+                }),
+            )))
+            .subscribe({
+                next: (session) => {
+                    this.videoSrc.set(session.source.url);
+                    if (!this.poster()) this.poster.set(resolvePath(session.media.posterPath));
+                    if (!this.title()) this.title.set(session.media.title);
+                    this.resumeSeconds.set(session.resumeSeconds);
+                    this.sessionId.set(session.sessionId);
+                    this.nextSequence = 1;
+                    this.lastProgressAt = 0;
+                    this.loading.set(false);
+                },
+            });
+        destroyRef.onDestroy(() => {
+            this.progressEvents.complete();
+            this.loadRequests.complete();
+        });
     }
 
     load(id: number): void {
         this.reset();
         this.loading.set(true);
 
-        this.moviesApi.findById(id).subscribe({
-            next: (movie) => {
-                this.movie.set(movie);
-                this.title.set(movie.title);
-                this.year.set(movie.release_date?.slice(0, 4) ?? '');
-                this.overview.set(movie.overview ?? '');
-                const posterUrl = this.resolvePosterUrl(movie.poster_path);
-                if (posterUrl) {
-                    this.poster.set(posterUrl);
-                }
-            },
-            error: (error: unknown) => {
-                this.loading.set(false);
-                this.error.set(toMessage(error));
-            },
-        });
-
-        this.playbackApi.start(id).subscribe({
-            next: (session) => {
-                this.videoSrc.set(session.source.url);
-                if (!this.poster()) this.poster.set(resolvePath(session.media.posterPath));
-                if (!this.title()) this.title.set(session.media.title);
-                this.resumeSeconds.set(session.resumeSeconds);
-                this.sessionId.set(session.sessionId);
-                this.nextSequence = 1;
-                this.lastProgressAt = 0;
-                this.loading.set(false);
-            },
-            error: (error: unknown) => {
-                this.loading.set(false);
-                this.error.set(toMessage(error));
-            },
-        });
+        this.loadRequests.next(id);
     }
 
     onSnapshot(snapshot: PlaybackLifecycleSnapshot): void {
@@ -148,6 +160,7 @@ export class WatchStore {
         this.latestSnapshot = null;
         this.lastEnqueuedSnapshot = null;
     }
+
 
     private resolvePosterUrl(posterPath: string | null | undefined): string | null {
         if (!posterPath) return null;
