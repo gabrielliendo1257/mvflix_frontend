@@ -3,12 +3,13 @@ import { FormsModule } from '@angular/forms';
 import { ActivatedRoute, Router } from '@angular/router';
 import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
 import { MediaApi } from '@features/media/data-access/media-api';
+import { MediaDetail } from '@features/media/models/media-detail';
 import { MovieVisibility } from '@features/movies/models/web-movie';
-import { MediaAsset } from '@features/libraries/models/library';
 import { ActionsMenu, ActionsMenuItem } from '@shared/actions-menu';
 import { ConfirmDialog } from '@shared/confirm-dialog';
 import { VisibilityModal } from '@features/movies/components/visibility-modal/visibility-modal';
 import { IdentifyModal } from '@features/libraries/components/identify-modal/identify-modal';
+import { MediaAsset } from '@features/libraries/models/library';
 import { CatalogApi } from '@features/catalog/data-access/catalog-api';
 import { CatalogStore } from '@features/catalog/data-access/catalog-store';
 import {
@@ -81,7 +82,10 @@ export class CatalogPage {
     readonly confirmOpen = signal(false);
     readonly providerTarget = signal<CatalogItem | null>(null);
     readonly providerOpen = signal(false);
-    readonly technicalTarget = signal<CatalogItem | null>(null);
+    readonly technicalTarget = signal<number | null>(null);
+    readonly technicalDetail = signal<MediaDetail | null>(null);
+    readonly technicalLoading = signal(false);
+    readonly technicalError = signal(false);
 
     readonly displayStatusOf = (item: CatalogItem): string => item.displayStatus ?? item.status;
 
@@ -155,11 +159,26 @@ export class CatalogPage {
     }
 
     openTechnical(item: CatalogItem): void {
-        if (item.capabilities.viewDetail) this.technicalTarget.set(item);
+        if (!item.capabilities.viewDetail || item.mediaId == null) return;
+        this.technicalTarget.set(item.mediaId);
+        this.technicalDetail.set(null);
+        this.technicalError.set(false);
+        this.technicalLoading.set(true);
+        this.mediaApi.detail(item.mediaId).subscribe({
+            next: (detail) => {
+                this.technicalDetail.set(detail);
+                this.technicalLoading.set(false);
+            },
+            error: () => {
+                this.technicalLoading.set(false);
+                this.technicalError.set(true);
+            },
+        });
     }
 
     closeTechnical(): void {
         this.technicalTarget.set(null);
+        this.technicalDetail.set(null);
     }
 
     openProvider(item: CatalogItem): void {
@@ -207,7 +226,6 @@ export class CatalogPage {
 
     openIdentify(item: CatalogItem): void {
         if (item.assetId == null) return;
-        // Forma mínima de MediaAsset para el modal de identify (solo usa id y nombre).
         this.identifyTarget.set({
             id: item.assetId,
             libraryId: 0,

@@ -192,21 +192,27 @@
         (movieSelected)="onProviderSelected($event)"
     />
 
-    @if (technicalTarget(); as technical) {
+    @if (technicalTarget()) {
         <div class="technical-backdrop" (click)="closeTechnical()">
             <section class="technical-modal" role="dialog" aria-label="Información técnica" (click)="$event.stopPropagation()">
                 <div class="technical-head">
                     <h2>Información técnica</h2>
                     <button class="btn" type="button" (click)="closeTechnical()">Cerrar</button>
                 </div>
-                <dl class="technical-list">
-                    <div><dt>Media ID</dt><dd>{{ technical.mediaId ?? '—' }}</dd></div>
-                    <div><dt>Asset ID</dt><dd>{{ technical.assetId ?? '—' }}</dd></div>
-                    <div><dt>Source</dt><dd>{{ technical.source || '—' }}</dd></div>
-                    <div><dt>Duration</dt><dd>{{ technical.duration || '—' }}</dd></div>
-                    <div><dt>Asset present</dt><dd>{{ technical.assetPresent == null ? '—' : technical.assetPresent ? 'Yes' : 'No' }}</dd></div>
-                    <div><dt>Provider</dt><dd>{{ technical.providerStatus || '—' }}</dd></div>
-                </dl>
+                @if (technicalLoading()) {
+                    <p class="muted">Cargando información técnica...</p>
+                } @else if (technicalError()) {
+                    <p class="muted">No se pudo cargar la información técnica.</p>
+                } @else if (technicalDetail(); as technical) {
+                    <dl class="technical-list">
+                        <div><dt>Media ID</dt><dd>{{ technical.media.mediaId }}</dd></div>
+                        <div><dt>Asset ID</dt><dd>{{ technical.access.assetId ?? '—' }}</dd></div>
+                        <div><dt>Source</dt><dd>{{ technical.access.source || '—' }}</dd></div>
+                        <div><dt>Duration</dt><dd>{{ technical.overview.duration || '—' }}</dd></div>
+                        <div><dt>Asset present</dt><dd>{{ technical.access.assetPresent == null ? '—' : technical.access.assetPresent ? 'Yes' : 'No' }}</dd></div>
+                        <div><dt>Provider</dt><dd>{{ technical.provider.status || '—' }}</dd></div>
+                    </dl>
+                }
             </section>
         </div>
     }
