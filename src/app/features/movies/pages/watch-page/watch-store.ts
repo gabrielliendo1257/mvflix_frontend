@@ -42,6 +42,9 @@ export class WatchStore {
     private lastProgressAt = 0;
     private latestSnapshot: PlaybackLifecycleSnapshot | null = null;
     private lastEnqueuedSnapshot: PlaybackLifecycleSnapshot | null = null;
+    private activeMediaId: number | null = null;
+    private renewalTimer: ReturnType<typeof setTimeout> | null = null;
+    private renewing = false;
 
     constructor() {
         const destroyRef = inject(DestroyRef);
@@ -100,16 +103,19 @@ export class WatchStore {
                     this.nextSequence = 1;
                     this.lastProgressAt = 0;
                     this.loading.set(false);
+                    this.scheduleRenewal(session.media.id, session.source.expiresAt);
                 },
             });
         destroyRef.onDestroy(() => {
             this.progressEvents.complete();
             this.loadRequests.complete();
+            this.clearRenewalTimer();
         });
     }
 
     load(id: number): void {
         this.reset();
+        this.activeMediaId = id;
         this.loading.set(true);
 
         this.loadRequests.next(id);
@@ -124,6 +130,10 @@ export class WatchStore {
         if (this.latestSnapshot && this.latestSnapshot !== this.lastEnqueuedSnapshot) {
             this.enqueue(this.latestSnapshot);
         }
+    }
+
+    onPlaybackError(): void {
+        this.renewSource();
     }
 
     private enqueueIfDue(snapshot: PlaybackLifecycleSnapshot): void {
@@ -146,6 +156,7 @@ export class WatchStore {
     }
 
     private reset(): void {
+        this.clearRenewalTimer();
         this.movie.set(null);
         this.videoSrc.set('');
         this.poster.set('');
@@ -159,6 +170,36 @@ export class WatchStore {
         this.lastProgressAt = 0;
         this.latestSnapshot = null;
         this.lastEnqueuedSnapshot = null;
+    }
+
+    private scheduleRenewal(mediaId: number, expiresAt: Date | null): void {
+        this.clearRenewalTimer();
+        if (!expiresAt) return;
+
+        const renewIn = Math.max(0, expiresAt.getTime() - Date.now() - 30_000);
+        this.renewalTimer = setTimeout(() => this.renewSource(mediaId), renewIn);
+    }
+
+    private renewSource(mediaId = this.activeMediaId): void {
+        if (mediaId == null || mediaId !== this.activeMediaId || this.renewing) return;
+        this.renewing = true;
+        this.playbackApi.start(mediaId).pipe(catchError(() => EMPTY)).subscribe({
+            next: (session) => {
+                if (mediaId !== this.activeMediaId) return;
+                this.videoSrc.set(session.source.url);
+                this.sessionId.set(session.sessionId);
+                if (this.latestSnapshot) this.resumeSeconds.set(this.latestSnapshot.positionSeconds);
+                this.nextSequence = 1;
+                this.lastProgressAt = 0;
+                this.scheduleRenewal(mediaId, session.source.expiresAt);
+            },
+            complete: () => this.renewing = false,
+        });
+    }
+
+    private clearRenewalTimer(): void {
+        if (this.renewalTimer) clearTimeout(this.renewalTimer);
+        this.renewalTimer = null;
     }
 
 

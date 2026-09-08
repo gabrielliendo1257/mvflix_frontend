@@ -46,6 +46,7 @@
                     [startTime]="resumeSeconds() ?? 0"
                     (snapshot)="watchStore.onSnapshot($event)"
                     (paused)="watchStore.onPaused()"
+                    (playbackError)="watchStore.onPlaybackError()"
                 ></app-video-player>
             </div>
 
