@@ -20,7 +20,7 @@ import {
     UploadTask,
 } from '@features/uploads/models/upload-task';
 import { MediaKind } from '@features/movies/models/media-kind';
-import { MovieMetadata } from '@features/movies/models/movie-metadata';
+import { MediaDraft } from '@features/movies/models/media-draft';
 import {
     AddMediaProcess,
     InitialAccess,
@@ -57,14 +57,16 @@ export class UploadFacade {
     private readonly subscriptions = new Map<string, Subscription>();
 
     constructor() {
-        this.resumePending();
+        const userKey = sessionStorage.getItem('mvflix-session-subject');
+        if (userKey) this.resumePending(userKey);
     }
 
     startUpload(
         file: File,
-        metadata: MovieMetadata,
+        metadata: MediaDraft,
         kind: MediaKind,
         access?: InitialAccess,
+        providerId: number | null = null,
     ): string {
         const uploadId = newIdempotencyKey();
 
@@ -73,6 +75,7 @@ export class UploadFacade {
                 uploadId,
                 addMediaId: null,
                 movieId: null,
+                providerId,
                 file,
                 fileName: file.name,
                 fileFingerprint: null,
@@ -88,7 +91,7 @@ export class UploadFacade {
         ]);
 
         // Las películas necesitan proveedor; los vídeos genéricos no.
-        if (kind === 'MOVIE' && (!Number.isFinite(metadata.id) || metadata.id <= 0)) {
+        if (kind === 'MOVIE' && (providerId == null || !Number.isFinite(providerId) || providerId <= 0)) {
             this.fail(uploadId, 'Selecciona un candidato primero.', 'PREPARING_FAILED');
             return uploadId;
         }
@@ -165,7 +168,7 @@ export class UploadFacade {
         }
 
         this.patchTask(uploadId, { state: 'cancelled' });
-        this.persistence.clearPending(uploadId);
+        this.persistence.clearPending(this.userKey(), uploadId);
     }
 
     remove(uploadId: string): void {
@@ -199,13 +202,13 @@ export class UploadFacade {
         const task = this.taskById(uploadId);
         if (!task) return EMPTY;
 
-        const command = toCommand(uploadId, file, task.metadata, task.kind, task.access);
+        const command = toCommand(uploadId, file, task.metadata, task.kind, task.access, task.providerId);
 
         return this.addMediaApi.start(command).pipe(
             tap((process) => {
                 const fingerprint = fingerprintFrom(task.file!, process.addMediaId);
                 this.patchTask(uploadId, { fileFingerprint: fingerprint });
-                this.persistence.savePending(toPending(uploadId, task, process, fingerprint));
+                this.persistence.savePending(toPending(this.userKey(), uploadId, task, process, fingerprint));
             }),
             switchMap((process) => this.continueFrom(uploadId, process)),
         );
@@ -319,26 +322,27 @@ export class UploadFacade {
 
     // ─── Reanudación tras recarga ───
 
-    private resumePending(): void {
-        const pending = this.persistence.loadPending();
-        if (!pending) return;
+    private resumePending(userKey: string): void {
+        const pending = this.persistence.loadPending(userKey);
+        if (!pending.length) return;
 
         this.tasks.update((tasks) => [
-            {
-                uploadId: pending.idempotencyKey,
-                addMediaId: pending.addMediaId,
-                movieId: pending.movieId,
+            ...pending.map((item) => ({
+                uploadId: item.idempotencyKey,
+                addMediaId: item.addMediaId,
+                movieId: item.movieId,
+                providerId: item.providerId,
                 file: null,
-                fileName: pending.fileFingerprint.filename,
-                fileFingerprint: pending.fileFingerprint,
+                fileName: item.fileFingerprint.filename,
+                fileFingerprint: item.fileFingerprint,
                 progress: 0,
-                state: 'waiting_for_file',
-                metadata: pendingMetadata(pending),
-                kind: pending.draft.kind ?? 'MOVIE',
-                access: pending.access,
+                state: 'waiting_for_file' as const,
+                metadata: pendingMetadata(item),
+                kind: item.draft.kind ?? 'MOVIE',
+                access: item.access,
                 failureCode: null,
                 diagnostics: null,
-            },
+            })),
             ...tasks,
         ]);
 
@@ -348,7 +352,7 @@ export class UploadFacade {
 
     private finish(uploadId: string): void {
         this.patchTask(uploadId, { state: 'completed', progress: 100 });
-        this.persistence.clearPending(uploadId);
+        this.persistence.clearPending(this.userKey(), uploadId);
     }
 
     private fail(uploadId: string, error: unknown, failureCode: UploadFailureCode): void {
@@ -366,7 +370,7 @@ export class UploadFacade {
             // Nunca se registra la URL: solo el host extraído de las instrucciones.
             console.warn('[UploadFacade] upload failure diagnostics', diagnostics);
         }
-        this.persistence.clearPending(uploadId);
+        this.persistence.clearPending(this.userKey(), uploadId);
     }
 
     private patchTask(uploadId: string, patch: Partial<UploadTask>): void {
@@ -379,14 +383,19 @@ export class UploadFacade {
         this.subscriptions.get(uploadId)?.unsubscribe();
         this.subscriptions.set(uploadId, subscription);
     }
+
+    private userKey(): string {
+        return sessionStorage.getItem('mvflix-session-subject') ?? '';
+    }
 }
 
 function toCommand(
     idempotencyKey: string,
     file: File,
-    metadata: MovieMetadata,
+    metadata: MediaDraft,
     kind: MediaKind,
     access?: InitialAccess,
+    providerId: number | null = null,
 ): StartAddMediaCommand {
     return {
         file: {
@@ -395,7 +404,7 @@ function toCommand(
             mimeType: file.type || 'application/octet-stream',
         },
         movie: {
-            providerId: kind === 'MOVIE' ? metadata.id : null,
+            providerId: kind === 'MOVIE' ? providerId : null,
             draft: toDraft(metadata, kind),
         },
         access,
@@ -404,17 +413,19 @@ function toCommand(
 }
 
 function toPending(
+    userKey: string,
     idempotencyKey: string,
     task: UploadTask,
     process: AddMediaProcess,
     fileFingerprint: UploadFileFingerprint,
 ): PendingAddMedia {
     return {
+        userKey,
         idempotencyKey,
         addMediaId: process.addMediaId,
         movieId: process.movieId,
         fileFingerprint,
-        providerId: task.kind === 'MOVIE' ? task.metadata.id : null,
+        providerId: task.providerId,
         draft: toDraft(task.metadata, task.kind),
         access: task.access,
     };
@@ -439,7 +450,7 @@ function sameFingerprint(file: File, fingerprint: UploadFileFingerprint): boolea
     );
 }
 
-function toDraft(metadata: MovieMetadata, kind: MediaKind): MovieDraft {
+function toDraft(metadata: MediaDraft, kind: MediaKind): MovieDraft {
     return {
         title: metadata.title,
         originalTitle: metadata.originalTitle,
@@ -460,9 +471,8 @@ function toDraft(metadata: MovieMetadata, kind: MediaKind): MovieDraft {
 }
 
 /** Reconstruye la metadata mínima para reintentos desde un proceso persistido. */
-function pendingMetadata(pending: PendingAddMedia): MovieMetadata {
+function pendingMetadata(pending: PendingAddMedia): MediaDraft {
     return {
-        id: pending.providerId ?? 0,
         title: pending.draft.title,
         originalTitle: pending.draft.originalTitle ?? '',
         year: pending.draft.year ?? null,

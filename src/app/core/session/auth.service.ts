@@ -11,6 +11,7 @@ export type AuthStatus = 'loading' | 'authenticated' | 'unauthenticated';
 })
 export class AuthService {
     private static readonly RETURN_URL_KEY = 'mvflix-return-url';
+    private static readonly USER_KEY = 'mvflix-session-subject';
 
     private readonly http = inject(HttpClient);
     private readonly router = inject(Router);
@@ -20,6 +21,7 @@ export class AuthService {
 
     readonly status = this._status.asReadonly();
     readonly isLogged = computed(() => this._status() === 'authenticated');
+    readonly subject = signal<string | null>(null);
 
     constructor() {
         this.checkSession();
@@ -31,12 +33,21 @@ export class AuthService {
             .get<SessionResponse>(`${this.baseUrl}/web/session`)
             .subscribe({
                 next: (session) => {
+                    this.subject.set(session.subject ?? null);
+                    if (session.subject) sessionStorage.setItem(AuthService.USER_KEY, session.subject);
                     this._status.set(session.authenticated ? 'authenticated' : 'unauthenticated');
+                    if (!session.authenticated) {
+                        sessionStorage.removeItem(AuthService.USER_KEY);
+                        localStorage.removeItem('pending-add-media');
+                    }
                     if (session.authenticated) {
                         this.restoreReturnUrl();
                     }
                 },
                 error: () => {
+                    this.subject.set(null);
+                    sessionStorage.removeItem(AuthService.USER_KEY);
+                    localStorage.removeItem('pending-add-media');
                     this._status.set('unauthenticated');
                 },
             });
@@ -58,9 +69,16 @@ export class AuthService {
         this.http.post(`${this.baseUrl}/web/logout`, null).subscribe({
             next: () => {
                 this._status.set('unauthenticated');
+                this.subject.set(null);
+                sessionStorage.removeItem(AuthService.USER_KEY);
+                localStorage.removeItem('pending-add-media');
                 window.location.href = '/';
             },
             error: () => {
+                this._status.set('unauthenticated');
+                this.subject.set(null);
+                sessionStorage.removeItem(AuthService.USER_KEY);
+                localStorage.removeItem('pending-add-media');
                 window.location.href = '/';
             },
         });

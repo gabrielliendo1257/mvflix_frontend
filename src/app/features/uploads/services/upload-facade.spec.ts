@@ -40,6 +40,7 @@ describe('UploadFacade', () => {
       uploadId: 'idem-1',
       addMediaId: 'add-1',
       movieId: 10,
+      providerId: 3,
       file: null,
       fileName: 'movie.mp4',
       fileFingerprint: {
@@ -67,7 +68,7 @@ describe('UploadFacade', () => {
 
   it('no continúa si el archivo no coincide con el fingerprint', () => {
     const task = {
-      uploadId: 'idem-2', addMediaId: 'add-2', movieId: null, file: null, fileName: 'movie.mp4',
+      uploadId: 'idem-2', addMediaId: 'add-2', movieId: null, providerId: null, file: null, fileName: 'movie.mp4',
       fileFingerprint: { filename: 'movie.mp4', size: 3, mimeType: 'video/mp4', lastModified: 123, addMediaId: 'add-2' },
       progress: 0, state: 'waiting_for_file' as const, metadata: {} as UploadTask['metadata'], kind: 'MOVIE' as const,
     } satisfies UploadTask;
@@ -96,7 +97,7 @@ describe('UploadFacade', () => {
       addMediaId: 'add-3', phase: 'READY', movieId: 3, uploadId: 'up-3', upload: null, failureCode: null,
     }));
 
-    service.startUpload(file, { id: 3, title: 'Large' } as MovieMetadata, 'MOVIE');
+    service.startUpload(file, { title: 'Large' } as MovieMetadata, 'MOVIE', undefined, 3);
     await Promise.resolve();
 
     expect(addMediaApi.uploadToStorage).toHaveBeenCalledWith(file, instructions);
@@ -116,7 +117,7 @@ describe('UploadFacade', () => {
       throwError(() => new HttpErrorResponse({ status: 0, error: new ProgressEvent('error') })),
     );
 
-    const uploadId = service.startUpload(file, { id: 5, title: 'Movie' } as MovieMetadata, 'MOVIE');
+    const uploadId = service.startUpload(file, { title: 'Movie' } as MovieMetadata, 'MOVIE', undefined, 5);
     await Promise.resolve();
 
     const task = service.taskById(uploadId);
@@ -132,7 +133,7 @@ describe('UploadFacade', () => {
     }));
 
     service.startUpload(new File(['video'], 'recording.mp4', { type: 'video/mp4' }),
-      { id: 0, title: 'Recording' } as MovieMetadata, 'VIDEO');
+      { title: 'Recording' } as MovieMetadata, 'VIDEO');
 
     expect(addMediaApi.start).toHaveBeenCalledWith(jasmine.objectContaining({
       movie: jasmine.objectContaining({ providerId: null, draft: jasmine.objectContaining({ kind: 'VIDEO' }) }),
