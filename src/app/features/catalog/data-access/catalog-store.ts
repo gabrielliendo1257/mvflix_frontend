@@ -82,6 +82,7 @@ export class CatalogStore {
 
     load(page: number): void {
         if (this.searchTimer) clearTimeout(this.searchTimer);
+        this.clearSelection();
         this.loading.set(true);
         this.error.set(false);
         this.api
