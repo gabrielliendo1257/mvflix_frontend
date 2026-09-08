@@ -14,7 +14,7 @@ import { DOCUMENT } from '@angular/common';
 import { PlaybackLifecycleSnapshot } from '@features/player/models/playback';
 
 interface MenuState {
-    kind: 'quality' | 'speed' | 'subtitles' | 'audio';
+    kind: 'speed';
 }
 
 @Component({
@@ -30,6 +30,7 @@ export class VideoPlayer implements AfterViewInit, OnDestroy {
     readonly startTime = input(0);
     readonly snapshot = output<PlaybackLifecycleSnapshot>();
     readonly paused = output<void>();
+    readonly playbackError = output<void>();
 
     /** Error de decodificación/formato/red del propio <video>. */
     readonly mediaError = signal<string | null>(null);
@@ -46,9 +47,6 @@ export class VideoPlayer implements AfterViewInit, OnDestroy {
     readonly duration = signal(0);
     readonly buffered = signal(0);
     readonly playbackRate = signal(1);
-    readonly quality = signal('Auto');
-    readonly subtitles = signal('Off');
-    readonly audioTrack = signal('Default');
     readonly isFullscreen = signal(false);
     readonly isBuffering = signal(false);
     readonly controlsVisible = signal(true);
@@ -56,10 +54,7 @@ export class VideoPlayer implements AfterViewInit, OnDestroy {
     readonly hoverPercent = signal(0);
     readonly openMenu = signal<MenuState | null>(null);
 
-    readonly qualityOptions = ['Auto', '1080p', '720p', '480p', '360p'];
     readonly speedOptions = [0.5, 0.75, 1, 1.25, 1.5, 2];
-    readonly subtitleOptions = ['Off', 'English', 'Español', 'Português'];
-    readonly audioOptions = ['Default', 'English', 'Español'];
 
     private hideTimer: ReturnType<typeof setTimeout> | null = null;
     private isScrubbing = false;
@@ -208,6 +203,7 @@ export class VideoPlayer implements AfterViewInit, OnDestroy {
         }
 
         this.mediaError.set('No se pudo reproducir el vídeo.');
+        this.playbackError.emit();
         this.isBuffering.set(false);
         this.isPlaying.set(false);
     };
@@ -275,21 +271,6 @@ export class VideoPlayer implements AfterViewInit, OnDestroy {
 
         video.playbackRate = rate;
         this.playbackRate.set(rate);
-        this.openMenu.set(null);
-    }
-
-    onQualityChange(quality: string): void {
-        this.quality.set(quality);
-        this.openMenu.set(null);
-    }
-
-    onSubtitlesChange(lang: string): void {
-        this.subtitles.set(lang);
-        this.openMenu.set(null);
-    }
-
-    onAudioChange(track: string): void {
-        this.audioTrack.set(track);
         this.openMenu.set(null);
     }
 
